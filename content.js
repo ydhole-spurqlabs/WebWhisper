@@ -213,6 +213,12 @@ function scanForVulnerabilities(isBackground = false) {
   // Check for client-side data exposure
   checkClientSideDataExposure(vulnerabilities);
   
+  // Check for JavaScript-specific vulnerabilities like prototype pollution
+  checkJavaScriptVulnerabilities(vulnerabilities);
+  
+  // Check for authentication token handling issues
+  checkAuthTokenHandling(vulnerabilities);
+  
   // Only perform these more intensive checks if not in background mode
   // or randomly in background mode to avoid impacting browsing experience
   if (!isBackground || Math.random() < 0.3) {
@@ -221,6 +227,9 @@ function scanForVulnerabilities(isBackground = false) {
 
     // Check for sensitive information in HTML
     checkSensitiveInfo(vulnerabilities);
+    
+    // Check for unencrypted client-side data
+    checkUnencryptedData(vulnerabilities);
   }
   
   // Return found vulnerabilities
@@ -1099,6 +1108,9 @@ function checkClientSideDataExposure(vulnerabilities) {
   
   // Check for sensitive data in data attributes
   checkDataAttributes(vulnerabilities);
+  
+  // Check for exposed API keys
+  checkExposedAPIKeys(vulnerabilities);
 }
 
 // Check localStorage for potentially sensitive data
@@ -1437,5 +1449,447 @@ function checkDataAttributes(vulnerabilities) {
         });
       }
     }
+  }
+}
+
+// Enhanced check for exposed API keys
+function checkExposedAPIKeys(vulnerabilities) {
+  // Get all scripts on the page
+  const scripts = document.querySelectorAll('script:not([src])');
+  const htmlContent = document.documentElement.innerHTML;
+  
+  // Common API key patterns
+  const apiKeyPatterns = [
+    { pattern: /['"]?api[_-]?key['"]?\s*[:=]\s*['"]([a-zA-Z0-9]{16,})['"]/, name: 'Generic API Key' },
+    { pattern: /['"]?api[_-]?secret['"]?\s*[:=]\s*['"]([a-zA-Z0-9]{16,})['"]/, name: 'API Secret' },
+    { pattern: /AKIA[0-9A-Z]{16}/, name: 'AWS Access Key ID' },
+    { pattern: /ghp_[a-zA-Z0-9]{36}/, name: 'GitHub Personal Access Token' },
+    { pattern: /AIza[0-9A-Za-z-_]{35}/, name: 'Google API Key' },
+    { pattern: /sk_live_[0-9a-zA-Z]{24}/, name: 'Stripe API Key' },
+    { pattern: /SG\.[a-zA-Z0-9]{22}\.[a-zA-Z0-9]{43}/, name: 'SendGrid API Key' },
+    { pattern: /key-[a-zA-Z0-9]{32}/, name: 'Mailgun API Key' },
+    { pattern: /[a-z0-9]{32}-us[0-9]{1,2}/, name: 'Mailchimp API Key' },
+    { pattern: /xox[baprs]-[0-9]{12}-[0-9]{12}-[a-zA-Z0-9]{24}/, name: 'Slack API Token' },
+    { pattern: /BEGIN\s+PRIVATE\s+KEY/, name: 'Private Key' }
+  ];
+  
+  // Check each API key pattern
+  for (const pattern of apiKeyPatterns) {
+    // Check in inline scripts
+    for (const script of scripts) {
+      const matches = script.textContent.match(pattern.pattern);
+      if (matches) {
+        vulnerabilities.push({
+          name: `Exposed ${pattern.name}`,
+          description: `A ${pattern.name} appears to be hardcoded in client-side JavaScript. API keys and secrets should never be exposed in client-side code.`,
+          severity: 'Critical',
+          location: 'JavaScript Code'
+        });
+      }
+    }
+    
+    // Check in entire HTML (could be outside scripts)
+    const htmlMatches = htmlContent.match(pattern.pattern);
+    if (htmlMatches && !vulnerabilities.some(v => v.name === `Exposed ${pattern.name}`)) {
+      vulnerabilities.push({
+        name: `Exposed ${pattern.name}`,
+        description: `A ${pattern.name} appears to be exposed in the HTML source. API keys and secrets should never be exposed in client-side code.`,
+        severity: 'Critical',
+        location: 'HTML Content'
+      });
+    }
+  }
+}
+
+// Check for unencrypted client-side data
+function checkUnencryptedData(vulnerabilities) {
+  try {
+    // Check for sensitive data structures in localStorage and sessionStorage
+    const storageItems = [
+      ...Object.keys(localStorage || {}).map(key => ({ storage: 'localStorage', key, value: localStorage.getItem(key) })),
+      ...Object.keys(sessionStorage || {}).map(key => ({ storage: 'sessionStorage', key, value: sessionStorage.getItem(key) }))
+    ];
+    
+    // Patterns for sensitive data
+    const sensitiveValuePatterns = [
+      { pattern: /^\d{16}$/, type: 'Credit Card Number' },  // 16 digit number
+      { pattern: /^\d{3,4}$/, type: 'CVV Code' },           // 3-4 digit number
+      { pattern: /^\d{3}-\d{2}-\d{4}$/, type: 'SSN' },      // XXX-XX-XXXX format
+      { pattern: /^\d{9}$/, type: 'SSN' },                  // 9 digit number
+      { pattern: /base64eyJ/, type: 'Base64 Encoded Data' } // Common pattern for base64 encoded JSON
+    ];
+    
+    // Check for potentially sensitive unencrypted data
+    for (const item of storageItems) {
+      // Skip items we know are already checked by other functions
+      if (item.key.includes('preference') || 
+          item.key.includes('theme') || 
+          item.key.includes('language')) {
+        continue;
+      }
+      
+      // Try to identify JSON data
+      if (item.value && item.value.startsWith('{') && item.value.endsWith('}')) {
+        try {
+          const parsedValue = JSON.parse(item.value);
+          
+          // Check if JSON contains potentially sensitive fields but no indication of encryption
+          const sensitiveKeys = ['password', 'token', 'secret', 'key', 'credit', 'card', 'ssn', 'account'];
+          const containsSensitiveKey = Object.keys(parsedValue).some(k => 
+            sensitiveKeys.some(sk => k.toLowerCase().includes(sk))
+          );
+          
+          // Check if there are indicators this might be encrypted
+          const possiblyEncrypted = 
+            (typeof parsedValue.iv === 'string' && typeof parsedValue.ciphertext === 'string') ||
+            (typeof parsedValue.salt === 'string' && typeof parsedValue.ct === 'string') ||
+            item.key.includes('encrypt') || 
+            item.value.includes('cipher');
+          
+          if (containsSensitiveKey && !possiblyEncrypted) {
+            vulnerabilities.push({
+              name: 'Unencrypted Sensitive Data in Client Storage',
+              description: `${item.storage} contains what appears to be sensitive data in JSON format without encryption.`,
+              severity: 'High',
+              location: `${item.storage}["${item.key}"]`
+            });
+          }
+        } catch (e) {
+          // Not valid JSON, continue checking with other methods
+        }
+      }
+      
+      // Check for structured sensitive data
+      for (const pattern of sensitiveValuePatterns) {
+        if (item.value && pattern.pattern.test(item.value)) {
+          vulnerabilities.push({
+            name: `Potential ${pattern.type} Stored Unencrypted`,
+            description: `${item.storage} contains what appears to be a ${pattern.type} stored in plaintext.`,
+            severity: 'High',
+            location: `${item.storage}["${item.key}"]`
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.log('Error checking for unencrypted data:', e);
+  }
+}
+
+// Check for JavaScript-specific vulnerabilities like prototype pollution
+function checkJavaScriptVulnerabilities(vulnerabilities) {
+  // Get all scripts
+  const scripts = document.querySelectorAll('script:not([src])');
+  let scriptContent = '';
+  
+  for (const script of scripts) {
+    scriptContent += script.textContent + '\n';
+  }
+  
+  // Check for prototype pollution vulnerabilities
+  checkPrototypePollution(scriptContent, vulnerabilities);
+  
+  // Check for other JavaScript security issues
+  checkUnsafeEval(scriptContent, vulnerabilities);
+  checkReDoS(scriptContent, vulnerabilities);
+  checkDeepMergeVulnerability(scriptContent, vulnerabilities);
+}
+
+// Check for prototype pollution vulnerabilities
+function checkPrototypePollution(scriptContent, vulnerabilities) {
+  // Common patterns that may indicate prototype pollution vulnerabilities
+  const prototypeAccessPatterns = [
+    { pattern: /Object\.prototype\.\w+\s*=/, name: 'Direct Object.prototype Modification' },
+    { pattern: /\.__proto__\s*=/, name: '__proto__ Assignment' },
+    { pattern: /\[['"]__proto__['"]\]\s*=/, name: 'Bracket __proto__ Assignment' },
+    { pattern: /\.constructor\.prototype/, name: 'constructor.prototype Access' },
+    { pattern: /Object\.assign\s*\([^,)]+,\s*(?:JSON\.parse|req\.body|req\.query|req\.params|location)/, name: 'Unsafe Object.assign with User Input' },
+    { pattern: /\$\.extend\s*\([^,)]+,\s*(?:JSON\.parse|req\.body|req\.query|req\.params|location)/, name: 'Unsafe jQuery.extend with User Input' }
+  ];
+  
+  // Search for each pattern
+  for (const pattern of prototypeAccessPatterns) {
+    if (pattern.pattern.test(scriptContent)) {
+      vulnerabilities.push({
+        name: 'Potential Prototype Pollution Vulnerability',
+        description: `Code contains ${pattern.name} which may lead to prototype pollution if user input can reach this code.`,
+        severity: 'High',
+        location: 'JavaScript Code'
+      });
+    }
+  }
+  
+  // Check for unsafe recursive merge functions
+  if ((scriptContent.includes('merge') || scriptContent.includes('extend') || scriptContent.includes('assign')) &&
+      (scriptContent.includes('__proto__') || scriptContent.includes('prototype'))) {
+    
+    // Look for common merge/extend functions
+    if (scriptContent.match(/function\s+(?:deep)?(?:Merge|merge|Extend|extend)/)) {
+      vulnerabilities.push({
+        name: 'Potential Recursive Merge Prototype Pollution',
+        description: 'Custom merge or extend function detected that might be vulnerable to prototype pollution if it handles objects recursively without proper sanitization.',
+        severity: 'Medium',
+        location: 'JavaScript Code'
+      });
+    }
+  }
+}
+
+// Check for unsafe eval usage
+function checkUnsafeEval(scriptContent, vulnerabilities) {
+  // Check for eval with dynamic input
+  if (scriptContent.match(/eval\s*\([^)]*(?:input|value|innerHTML|parameter|query|param|request|response|data)/i)) {
+    vulnerabilities.push({
+      name: 'Unsafe eval() with Dynamic Input',
+      description: 'Code uses eval() with potentially dynamic input, which could lead to code injection vulnerabilities.',
+      severity: 'High',
+      location: 'JavaScript Code'
+    });
+  }
+  
+  // Check for new Function with dynamic input
+  if (scriptContent.match(/new\s+Function\s*\([^)]*(?:input|value|innerHTML|parameter|query|param|request|response|data)/i)) {
+    vulnerabilities.push({
+      name: 'Unsafe Function Constructor with Dynamic Input',
+      description: 'Code uses new Function() with potentially dynamic input, which could lead to code injection vulnerabilities.',
+      severity: 'High',
+      location: 'JavaScript Code'
+    });
+  }
+}
+
+// Check for potential ReDoS (Regular Expression Denial of Service) vulnerabilities
+function checkReDoS(scriptContent, vulnerabilities) {
+  // Patterns that might indicate vulnerable regex
+  const vulnerableRegexPatterns = [
+    { pattern: /\(\.\*\)\+/, name: 'Nested Repetition Quantifiers' }, 
+    { pattern: /\[\^.*\]\*\+/, name: 'Negated Character Set with Repetition' },
+    { pattern: /\.\*\.\*/, name: 'Multiple Wildcards' },
+    { pattern: /\(\.\*\|\.\*\)/, name: 'Alternation with Wildcards' },
+    { pattern: /\(\.\*\)\{\d+,\}/, name: 'Unbounded Repetition' }
+  ];
+  
+  // Find regex literals or RegExp constructors
+  const regexMatches = scriptContent.match(/\/(?:\\.|[^\/])+\/[gim]*|new\s+RegExp\s*\([^)]+\)/g) || [];
+  
+  // Check each regex for vulnerable patterns
+  for (const regexMatch of regexMatches) {
+    for (const pattern of vulnerableRegexPatterns) {
+      if (pattern.pattern.test(regexMatch)) {
+        vulnerabilities.push({
+          name: 'Potential ReDoS Vulnerability',
+          description: `Regular expression contains ${pattern.name} which may be vulnerable to Regular Expression Denial of Service (ReDoS) attacks.`,
+          severity: 'Medium',
+          location: `Regex: ${regexMatch}`
+        });
+        break;
+      }
+    }
+  }
+}
+
+// Check for common deep merge vulnerabilities that can lead to prototype pollution
+function checkDeepMergeVulnerability(scriptContent, vulnerabilities) {
+  // Common vulnerable deep merge libraries/functions
+  const vulnerableMergePatterns = [
+    { pattern: /lodash\.merge|_\.merge/, name: 'Lodash merge (versions < 4.17.21)' },
+    { pattern: /jquery\.extend\s*\(\s*true/, name: 'jQuery.extend with deep copy (versions < 3.5.0)' },
+    { pattern: /\$\.extend\s*\(\s*true/, name: 'jQuery.extend with deep copy (versions < 3.5.0)' }
+  ];
+  
+  // Check for each vulnerable pattern
+  for (const pattern of vulnerableMergePatterns) {
+    if (pattern.pattern.test(scriptContent)) {
+      vulnerabilities.push({
+        name: 'Potential Deep Merge Vulnerability',
+        description: `Code uses ${pattern.name} which may be vulnerable to prototype pollution if used with untrusted data.`,
+        severity: 'Medium',
+        location: 'JavaScript Code'
+      });
+    }
+  }
+}
+
+// Check for improper authentication token handling
+function checkAuthTokenHandling(vulnerabilities) {
+  // Check for tokens in storage
+  checkTokensInStorage(vulnerabilities);
+  
+  // Check for secure token configuration
+  checkTokenConfiguration(vulnerabilities);
+  
+  // Check for server-client token validation issues
+  checkTokenValidation(vulnerabilities);
+}
+
+// Check for authentication tokens in storage
+function checkTokensInStorage(vulnerabilities) {
+  try {
+    // Check localStorage for tokens
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      const value = localStorage.getItem(key);
+      
+      // Check for JWT tokens
+      if (value && typeof value === 'string' && 
+          /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(value)) {
+        
+        try {
+          // Try to decode the token payload
+          const payload = JSON.parse(atob(value.split('.')[1]));
+          
+          // Check if token contains sensitive claims
+          const sensitiveClaims = ['sub', 'role', 'permissions', 'email', 'groups', 'admin', 'scope'];
+          const hasSensitiveClaims = Object.keys(payload).some(claim => 
+            sensitiveClaims.some(sc => claim.toLowerCase().includes(sc))
+          );
+          
+          // Check for expiration
+          const hasExpiration = payload.exp !== undefined;
+          
+          // Check for additional security concerns
+          if (hasSensitiveClaims && !hasExpiration) {
+            vulnerabilities.push({
+              name: 'JWT Token Without Expiration',
+              description: 'JWT token contains sensitive claims but does not have an expiration time (exp claim), making it valid indefinitely.',
+              severity: 'Medium',
+              location: `localStorage["${key}"]`
+            });
+          }
+          
+          // Check for very long expiration time
+          if (hasExpiration) {
+            const expirationDate = new Date(payload.exp * 1000);
+            const now = new Date();
+            const monthsToExpire = (expirationDate - now) / (1000 * 60 * 60 * 24 * 30);
+            
+            if (monthsToExpire > 6) {
+              vulnerabilities.push({
+                name: 'JWT Token with Excessive Expiration Time',
+                description: `JWT token has an excessive expiration time (${Math.round(monthsToExpire)} months), increasing the window of opportunity for token theft.`,
+                severity: 'Low',
+                location: `localStorage["${key}"]`
+              });
+            }
+          }
+          
+          // Check for missing token type
+          if (!key.toLowerCase().includes('refresh') && !payload.type && hasSensitiveClaims) {
+            vulnerabilities.push({
+              name: 'JWT Token Missing Type Claim',
+              description: 'JWT access token does not specify a "type" claim, making it difficult to distinguish between access and refresh tokens.',
+              severity: 'Low',
+              location: `localStorage["${key}"]`
+            });
+          }
+        } catch (e) {
+          // Error parsing JWT, continue
+        }
+      }
+    }
+    
+    // Check if access token and refresh token are both stored in localStorage
+    const hasAccessToken = Array.from({length: localStorage.length}, (_, i) => localStorage.key(i))
+      .some(key => key.toLowerCase().includes('access') && key.toLowerCase().includes('token'));
+    
+    const hasRefreshToken = Array.from({length: localStorage.length}, (_, i) => localStorage.key(i))
+      .some(key => key.toLowerCase().includes('refresh') && key.toLowerCase().includes('token'));
+    
+    if (hasAccessToken && hasRefreshToken) {
+      vulnerabilities.push({
+        name: 'Both Access and Refresh Tokens in localStorage',
+        description: 'Both access and refresh tokens are stored in localStorage. Refresh tokens should be stored in secure HttpOnly cookies to prevent access by JavaScript.',
+        severity: 'Medium',
+        location: 'localStorage'
+      });
+    }
+  } catch (e) {
+    console.log('Error checking tokens in storage:', e);
+  }
+}
+
+// Check for token configuration issues
+function checkTokenConfiguration(vulnerabilities) {
+  // Get all scripts on the page
+  const scripts = document.querySelectorAll('script:not([src])');
+  let scriptContent = '';
+  
+  for (const script of scripts) {
+    scriptContent += script.textContent + '\n';
+  }
+  
+  // Check for common token configuration issues in code
+  
+  // Lack of token validation
+  if (scriptContent.match(/token|jwt|auth/i) && 
+      !scriptContent.match(/verify|validate|check|isValid/i)) {
+    
+    vulnerabilities.push({
+      name: 'Potential Missing Token Validation',
+      description: 'Code appears to use authentication tokens but may not properly validate them before use.',
+      severity: 'Medium',
+      location: 'JavaScript Code'
+    });
+  }
+  
+  // Client-side token generation
+  if ((scriptContent.match(/generate.*token|create.*token|sign.*token|new.*token/i) || 
+       scriptContent.match(/jwt\.sign/)) && !scriptContent.includes('Service Worker')) {
+    
+    vulnerabilities.push({
+      name: 'Client-Side Token Generation',
+      description: 'Code appears to generate authentication tokens on the client side. Token creation should occur server-side only.',
+      severity: 'High',
+      location: 'JavaScript Code'
+    });
+  }
+  
+  // Check for token refresh mechanisms that don't validate old tokens
+  if (scriptContent.match(/refresh.*token/i) && 
+      !scriptContent.match(/verify.*before|validate.*before|check.*before/i)) {
+    
+    vulnerabilities.push({
+      name: 'Insecure Token Refresh Mechanism',
+      description: 'Token refresh logic may not validate the existing token before requesting a new one, which could allow token refresh attacks.',
+      severity: 'Medium',
+      location: 'JavaScript Code'
+    });
+  }
+}
+
+// Check for token validation issues
+function checkTokenValidation(vulnerabilities) {
+  // Get the network requests using performance API
+  if (window.performance && performance.getEntriesByType) {
+    const resources = performance.getEntriesByType('resource');
+    
+    // Check for authentication endpoints
+    for (const resource of resources) {
+      const url = resource.name.toLowerCase();
+      
+      // Check for potential authentication endpoints
+      if (url.includes('auth') || url.includes('login') || url.includes('token') || url.includes('signin')) {
+        // Check if request was made over HTTPS
+        if (!url.startsWith('https:')) {
+          vulnerabilities.push({
+            name: 'Authentication Over Insecure Connection',
+            description: 'Authentication request made over insecure HTTP connection. All authentication traffic should use HTTPS.',
+            severity: 'Critical',
+            location: resource.name
+          });
+        }
+      }
+    }
+  }
+  
+  // Check for token usage in URL (very bad practice)
+  const currentUrl = window.location.href;
+  if (/[?&](token|jwt|auth)=/i.test(currentUrl)) {
+    vulnerabilities.push({
+      name: 'Authentication Token in URL',
+      description: 'Authentication token included in URL parameters. This exposes the token in browser history, server logs, and referer headers.',
+      severity: 'High',
+      location: 'URL: ' + currentUrl.split('?')[0] + '?...'
+    });
   }
 } 
