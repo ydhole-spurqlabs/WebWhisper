@@ -198,8 +198,20 @@ function scanForVulnerabilities(isBackground = false) {
   // Check for mixed content
   checkMixedContent(vulnerabilities);
   
-  // Check for XSS vulnerabilities (new)
+  // Check for XSS vulnerabilities
   checkForXSSVulnerabilities(vulnerabilities);
+  
+  // Check for security header issues
+  checkSecurityHeaders(vulnerabilities);
+  
+  // Check for insecure CORS configurations
+  checkCORSConfiguration(vulnerabilities);
+  
+  // Check for CSP issues
+  checkContentSecurityPolicy(vulnerabilities);
+  
+  // Check for client-side data exposure
+  checkClientSideDataExposure(vulnerabilities);
   
   // Only perform these more intensive checks if not in background mode
   // or randomly in background mode to avoid impacting browsing experience
@@ -735,5 +747,695 @@ function checkSensitiveInfo(vulnerabilities) {
       severity: 'High',
       location: `API key: ${match[1].substring(0, 4)}...${match[1].substring(match[1].length - 4)}`
     });
+  }
+}
+
+// Check for security header issues
+function checkSecurityHeaders(vulnerabilities) {
+  // We can't directly access response headers using content scripts
+  // But we can use a trick to get some security headers via meta tags or JavaScript
+  
+  // Check for X-Frame-Options via CSP frame-ancestors or meta tags
+  checkXFrameOptions(vulnerabilities);
+  
+  // Check for X-XSS-Protection via meta tags
+  checkXXSSProtection(vulnerabilities);
+  
+  // Check for Referrer-Policy
+  checkReferrerPolicy(vulnerabilities);
+  
+  // Check for other important security headers that might be reflected in meta tags
+  checkOtherSecurityHeaders(vulnerabilities);
+}
+
+// Check for X-Frame-Options header issues
+function checkXFrameOptions(vulnerabilities) {
+  // Check for meta tag equivalent
+  const metaTags = document.querySelectorAll('meta[http-equiv="X-Frame-Options"]');
+  
+  if (metaTags.length === 0) {
+    // Check if CSP has frame-ancestors directive which can replace X-Frame-Options
+    const cspMeta = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+    const cspHeader = cspMeta ? cspMeta.getAttribute('content') : null;
+    
+    if (!cspHeader || !cspHeader.includes('frame-ancestors')) {
+      vulnerabilities.push({
+        name: 'Missing X-Frame-Options Header',
+        description: 'The page does not appear to set X-Frame-Options header or equivalent CSP directive, which helps prevent clickjacking attacks.',
+        severity: 'Medium',
+        location: 'HTTP Headers'
+      });
+    }
+  } else {
+    // Check if the value is secure
+    const value = metaTags[0].getAttribute('content');
+    if (value && (value.toLowerCase() !== 'deny' && value.toLowerCase() !== 'sameorigin')) {
+      vulnerabilities.push({
+        name: 'Weak X-Frame-Options Configuration',
+        description: `X-Frame-Options is set to "${value}" which may not provide sufficient protection against clickjacking. Recommended values are "DENY" or "SAMEORIGIN".`,
+        severity: 'Low',
+        location: 'X-Frame-Options Meta Tag'
+      });
+    }
+  }
+}
+
+// Check for X-XSS-Protection header issues
+function checkXXSSProtection(vulnerabilities) {
+  // Check for meta tag equivalent
+  const metaTags = document.querySelectorAll('meta[http-equiv="X-XSS-Protection"]');
+  
+  if (metaTags.length === 0) {
+    // While modern browsers phase this out in favor of CSP, it's still a good defense in depth measure
+    const cspMeta = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+    
+    // Only report if CSP is also missing or weak
+    if (!cspMeta || isWeakCSP(cspMeta.getAttribute('content'))) {
+      vulnerabilities.push({
+        name: 'Missing X-XSS-Protection Header',
+        description: 'The page does not set X-XSS-Protection header. While modern browsers rely more on CSP, this header provides additional protection for older browsers.',
+        severity: 'Low',
+        location: 'HTTP Headers'
+      });
+    }
+  } else {
+    // Check if the value is secure
+    const value = metaTags[0].getAttribute('content');
+    if (value && value !== '1; mode=block') {
+      vulnerabilities.push({
+        name: 'Weak X-XSS-Protection Configuration',
+        description: `X-XSS-Protection is set to "${value}" which may not provide optimal protection. Recommended value is "1; mode=block".`,
+        severity: 'Low',
+        location: 'X-XSS-Protection Meta Tag'
+      });
+    }
+  }
+}
+
+// Check for Referrer-Policy header issues
+function checkReferrerPolicy(vulnerabilities) {
+  // Check for meta tag referrer
+  const metaTags = document.querySelectorAll('meta[name="referrer"]');
+  const referrerPolicy = document.referrerPolicy; // Get the document's referrer policy
+  
+  if (metaTags.length === 0 && referrerPolicy === '' || referrerPolicy === 'no-referrer-when-downgrade') {
+    vulnerabilities.push({
+      name: 'Missing or Weak Referrer-Policy',
+      description: 'The page does not set a strict Referrer-Policy. This could lead to leaking sensitive information in the Referer header when navigating to external sites.',
+      severity: 'Low',
+      location: 'HTTP Headers'
+    });
+  } else if (metaTags.length > 0) {
+    // Check specific meta tag value
+    const value = metaTags[0].getAttribute('content');
+    if (value && (value === 'unsafe-url' || value === 'origin-when-cross-origin' || value === '')) {
+      vulnerabilities.push({
+        name: 'Weak Referrer-Policy Configuration',
+        description: `Referrer-Policy is set to "${value}" which may leak sensitive information in URLs. Consider using stricter values like "no-referrer" or "same-origin".`,
+        severity: 'Low',
+        location: 'Referrer-Policy Meta Tag'
+      });
+    }
+  }
+}
+
+// Check for other important security headers
+function checkOtherSecurityHeaders(vulnerabilities) {
+  // Check for Strict-Transport-Security
+  const hstsMetaTag = document.querySelector('meta[http-equiv="Strict-Transport-Security"]');
+  
+  if (!hstsMetaTag && window.location.protocol === 'https:') {
+    vulnerabilities.push({
+      name: 'Missing Strict-Transport-Security Header',
+      description: 'The page does not appear to set the HTTP Strict-Transport-Security header, which helps ensure connections to the site are always via HTTPS.',
+      severity: 'Medium',
+      location: 'HTTP Headers'
+    });
+  }
+  
+  // Check for Feature-Policy/Permissions-Policy
+  const featurePolicyMeta = document.querySelector('meta[http-equiv="Feature-Policy"], meta[http-equiv="Permissions-Policy"]');
+  
+  if (!featurePolicyMeta) {
+    vulnerabilities.push({
+      name: 'Missing Permissions-Policy Header',
+      description: 'The page does not appear to set the Permissions-Policy header, which helps control which browser features and APIs can be used on the page.',
+      severity: 'Low',
+      location: 'HTTP Headers'
+    });
+  }
+}
+
+// Helper function to determine if a CSP is weak
+function isWeakCSP(cspContent) {
+  if (!cspContent) return true;
+  
+  // CSP is weak if it includes 'unsafe-inline', 'unsafe-eval' or uses wildcards '*'
+  return cspContent.includes('unsafe-inline') || 
+         cspContent.includes('unsafe-eval') || 
+         cspContent.includes("default-src *") ||
+         cspContent.includes("script-src *");
+}
+
+// Check for insecure CORS configurations
+function checkCORSConfiguration(vulnerabilities) {
+  // We can't directly check CORS headers from content scripts
+  // But we can look for signs of insecure CORS patterns in JavaScript
+  
+  // Get all script contents
+  const scripts = document.querySelectorAll('script:not([src])');
+  let scriptContent = '';
+  
+  for (const script of scripts) {
+    scriptContent += script.textContent + '\n';
+  }
+  
+  // Check for typical patterns that might indicate insecure CORS configurations
+  
+  // 1. Check for AJAX requests with inappropriate withCredentials settings
+  if (scriptContent.includes('withCredentials: true') && 
+      scriptContent.match(/crossorigin|cors|Access-Control-Allow-Origin/i)) {
+    
+    vulnerabilities.push({
+      name: 'Potential Insecure CORS Configuration',
+      description: 'Code appears to make cross-origin requests with credentials. If the server uses a wildcard in Access-Control-Allow-Origin, this could lead to security vulnerabilities.',
+      severity: 'Medium',
+      location: 'JavaScript Code'
+    });
+  }
+  
+  // 2. Check for JSONP usage, which can bypass CORS restrictions but has security implications
+  if (scriptContent.match(/jsonp|callback=/i) && 
+      scriptContent.match(/appendChild\s*\(\s*script\s*\)|createElement\s*\(\s*['"]script['"]/) ) {
+    
+    vulnerabilities.push({
+      name: 'JSONP Usage Detected',
+      description: 'The page appears to use JSONP for cross-origin requests. JSONP can bypass CORS restrictions but may introduce security risks if the external API is not trusted.',
+      severity: 'Medium',
+      location: 'JavaScript Code'
+    });
+  }
+  
+  // 3. Look for signs of CORS proxy usage or bypassing
+  if (scriptContent.match(/cors-anywhere|cors proxy|proxy\.php|corsproxy/i)) {
+    vulnerabilities.push({
+      name: 'CORS Proxy Usage',
+      description: 'The page appears to use a CORS proxy to bypass Same-Origin Policy restrictions. This may introduce security risks if not properly implemented.',
+      severity: 'Medium',
+      location: 'JavaScript Code'
+    });
+  }
+  
+  // 4. Check for postMessage usage without proper origin checking
+  if (scriptContent.includes('postMessage(') && 
+      !scriptContent.match(/\.origin\s*===|\.origin\s*==|targetOrigin/i)) {
+    
+    vulnerabilities.push({
+      name: 'Insecure Cross-Origin Communication',
+      description: 'The page uses postMessage() for cross-origin communication without apparent origin validation, which could allow malicious sites to send messages to this page.',
+      severity: 'High',
+      location: 'JavaScript Code'
+    });
+  }
+  
+  // 5. Check crossorigin attributes on scripts, images, etc.
+  const crossOriginElements = document.querySelectorAll('[crossorigin]');
+  
+  for (const element of crossOriginElements) {
+    const crossoriginValue = element.getAttribute('crossorigin');
+    
+    // anonymous is safer than use-credentials in many contexts
+    if (crossoriginValue === 'use-credentials') {
+      vulnerabilities.push({
+        name: 'Cross-Origin Resource using Credentials',
+        description: `A ${element.tagName.toLowerCase()} element is using crossorigin="use-credentials", which sends cookies and authentication with requests. Ensure the server properly restricts Access-Control-Allow-Origin.`,
+        severity: 'Low',
+        location: `${element.tagName.toLowerCase()} element with src="${element.getAttribute('src')}"`
+      });
+    }
+  }
+}
+
+// Check for CSP issues
+function checkContentSecurityPolicy(vulnerabilities) {
+  // Check for CSP via meta tag
+  const cspMetaTag = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+  let cspContent = null;
+  
+  if (cspMetaTag) {
+    cspContent = cspMetaTag.getAttribute('content');
+  }
+  
+  // If no CSP is found via meta tag, report it (we can't check HTTP headers directly)
+  if (!cspContent) {
+    vulnerabilities.push({
+      name: 'Missing Content Security Policy',
+      description: 'No Content Security Policy meta tag was found. CSP helps prevent XSS attacks by restricting the sources from which content can be loaded.',
+      severity: 'Medium',
+      location: 'HTTP Headers/Meta Tags'
+    });
+    return;
+  }
+  
+  // CSP exists, check for weak configurations
+  
+  // Check for unsafe-inline in script-src or default-src
+  if (cspContent.match(/script-src[^;]*'unsafe-inline'/i) || 
+      (cspContent.includes('default-src') && cspContent.match(/default-src[^;]*'unsafe-inline'/i) && !cspContent.includes('script-src'))) {
+    
+    vulnerabilities.push({
+      name: 'Weak Content Security Policy: unsafe-inline',
+      description: 'The Content Security Policy allows unsafe-inline scripts, which negates much of the XSS protection that CSP provides.',
+      severity: 'Medium',
+      location: 'Content-Security-Policy'
+    });
+  }
+  
+  // Check for unsafe-eval
+  if (cspContent.match(/script-src[^;]*'unsafe-eval'/i) || 
+      (cspContent.includes('default-src') && cspContent.match(/default-src[^;]*'unsafe-eval'/i) && !cspContent.includes('script-src'))) {
+    
+    vulnerabilities.push({
+      name: 'Weak Content Security Policy: unsafe-eval',
+      description: 'The Content Security Policy allows unsafe-eval, which permits the use of eval() and similar functions that can introduce XSS vulnerabilities.',
+      severity: 'Medium',
+      location: 'Content-Security-Policy'
+    });
+  }
+  
+  // Check for wildcards in script-src or default-src
+  if (cspContent.match(/script-src[^;]*\*/i) || 
+      (cspContent.includes('default-src') && cspContent.match(/default-src[^;]*\*/i) && !cspContent.includes('script-src'))) {
+    
+    vulnerabilities.push({
+      name: 'Weak Content Security Policy: Wildcard Source',
+      description: 'The Content Security Policy includes a wildcard (*) in script sources, which allows scripts from any origin and reduces the effectiveness of CSP.',
+      severity: 'Medium',
+      location: 'Content-Security-Policy'
+    });
+  }
+  
+  // Check if report-uri/report-to is configured
+  if (!cspContent.includes('report-uri') && !cspContent.includes('report-to')) {
+    vulnerabilities.push({
+      name: 'CSP Reporting Not Configured',
+      description: 'The Content Security Policy does not include a reporting mechanism (report-uri or report-to directive). Reporting helps identify and fix CSP violations.',
+      severity: 'Low',
+      location: 'Content-Security-Policy'
+    });
+  }
+  
+  // Check for missing frame-ancestors
+  if (!cspContent.includes('frame-ancestors')) {
+    vulnerabilities.push({
+      name: 'CSP Missing frame-ancestors Directive',
+      description: 'The Content Security Policy does not specify frame-ancestors directive, which helps prevent clickjacking attacks.',
+      severity: 'Low',
+      location: 'Content-Security-Policy'
+    });
+  }
+  
+  // Check for missing object-src
+  if (!cspContent.includes('object-src')) {
+    vulnerabilities.push({
+      name: 'CSP Missing object-src Directive',
+      description: 'The Content Security Policy does not specify object-src directive, which helps prevent embedding of potentially malicious Flash or other plugin content.',
+      severity: 'Low',
+      location: 'Content-Security-Policy'
+    });
+  }
+  
+  // Check for nonce or strict-dynamic usage 
+  // (modern and more secure approach compared to unsafe-inline)
+  const hasNonce = cspContent.includes('nonce-');
+  const hasStrictDynamic = cspContent.includes('strict-dynamic');
+  
+  if (!hasNonce && !hasStrictDynamic && cspContent.includes('unsafe-inline')) {
+    vulnerabilities.push({
+      name: 'CSP Uses Legacy Approach',
+      description: 'The Content Security Policy uses unsafe-inline without nonces or strict-dynamic. Consider upgrading to a nonce-based approach for better security.',
+      severity: 'Low',
+      location: 'Content-Security-Policy'
+    });
+  }
+}
+
+// Check for client-side data exposure issues
+function checkClientSideDataExposure(vulnerabilities) {
+  // Check localStorage for sensitive data
+  checkLocalStorage(vulnerabilities);
+  
+  // Check sessionStorage for sensitive data
+  checkSessionStorage(vulnerabilities);
+  
+  // Check for sensitive data in cookies
+  checkCookies(vulnerabilities);
+  
+  // Check JavaScript variables and objects for sensitive data
+  checkJavaScriptObjects(vulnerabilities);
+  
+  // Check input fields with sensitive information
+  checkSensitiveInputs(vulnerabilities);
+  
+  // Check for sensitive data in data attributes
+  checkDataAttributes(vulnerabilities);
+}
+
+// Check localStorage for potentially sensitive data
+function checkLocalStorage(vulnerabilities) {
+  try {
+    if (window.localStorage) {
+      // Patterns that might indicate sensitive information
+      const sensitivePatterns = [
+        { pattern: /password|passwd|pwd|secret/i, type: 'Password' },
+        { pattern: /token|jwt|auth|api.?key/i, type: 'Authentication Token' },
+        { pattern: /credit|card|cvv|cvc|ccv|cc.?num|cardnum/i, type: 'Credit Card' },
+        { pattern: /ssn|social.?security/i, type: 'Social Security Number' },
+        { pattern: /account|routing|bank/i, type: 'Financial Information' },
+        { pattern: /address|email|phone|mobile|zip|postal/i, type: 'Personal Information' }
+      ];
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        const value = localStorage.getItem(key);
+        
+        // Skip localStorage items that are clearly not sensitive
+        if (key.includes('preference') || 
+            key.includes('theme') || 
+            key.includes('language') || 
+            key.includes('ui_') || 
+            key.includes('lastVisited')) {
+          continue;
+        }
+        
+        // Check if key or value matches sensitive patterns
+        for (const pattern of sensitivePatterns) {
+          if (pattern.pattern.test(key) || (value && typeof value === 'string' && pattern.pattern.test(value))) {
+            vulnerabilities.push({
+              name: 'Potential Sensitive Data Exposure in localStorage',
+              description: `Potential ${pattern.type} information stored in client-side localStorage under key "${key}". Sensitive data should not be stored unencrypted in localStorage.`,
+              severity: 'High',
+              location: `localStorage["${key}"]`
+            });
+            break;
+          }
+        }
+        
+        // Check for what looks like JWT tokens
+        if (value && typeof value === 'string' && 
+            /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(value)) {
+          vulnerabilities.push({
+            name: 'JWT Token Stored in localStorage',
+            description: 'A JWT token appears to be stored in localStorage. If this contains sensitive claims, it could be vulnerable to theft via XSS attacks.',
+            severity: 'Medium',
+            location: `localStorage["${key}"]`
+          });
+        }
+      }
+    }
+  } catch (e) {
+    // localStorage might be disabled or restricted, which is expected in some cases
+    console.log('Error checking localStorage:', e);
+  }
+}
+
+// Check sessionStorage for potentially sensitive data
+function checkSessionStorage(vulnerabilities) {
+  try {
+    if (window.sessionStorage) {
+      // Patterns that might indicate sensitive information
+      const sensitivePatterns = [
+        { pattern: /password|passwd|pwd|secret/i, type: 'Password' },
+        { pattern: /token|jwt|auth|api.?key/i, type: 'Authentication Token' },
+        { pattern: /credit|card|cvv|cvc|ccv|cc.?num|cardnum/i, type: 'Credit Card' },
+        { pattern: /ssn|social.?security/i, type: 'Social Security Number' },
+        { pattern: /account|routing|bank/i, type: 'Financial Information' },
+        { pattern: /address|email|phone|mobile|zip|postal/i, type: 'Personal Information' }
+      ];
+      
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        const value = sessionStorage.getItem(key);
+        
+        // Skip sessionStorage items that are clearly not sensitive
+        if (key.includes('preference') || 
+            key.includes('theme') || 
+            key.includes('language') || 
+            key.includes('ui_') || 
+            key.includes('lastVisited')) {
+          continue;
+        }
+        
+        // Check if key or value matches sensitive patterns
+        for (const pattern of sensitivePatterns) {
+          if (pattern.pattern.test(key) || (value && typeof value === 'string' && pattern.pattern.test(value))) {
+            vulnerabilities.push({
+              name: 'Potential Sensitive Data Exposure in sessionStorage',
+              description: `Potential ${pattern.type} information stored in client-side sessionStorage under key "${key}". While sessionStorage is cleared when the session ends, it's still vulnerable to XSS attacks.`,
+              severity: 'Medium',
+              location: `sessionStorage["${key}"]`
+            });
+            break;
+          }
+        }
+        
+        // Check for what looks like JWT tokens
+        if (value && typeof value === 'string' && 
+            /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(value)) {
+          vulnerabilities.push({
+            name: 'JWT Token Stored in sessionStorage',
+            description: 'A JWT token appears to be stored in sessionStorage. If this contains sensitive claims, it could be vulnerable to theft via XSS attacks.',
+            severity: 'Medium',
+            location: `sessionStorage["${key}"]`
+          });
+        }
+      }
+    }
+  } catch (e) {
+    // sessionStorage might be disabled or restricted, which is expected in some cases
+    console.log('Error checking sessionStorage:', e);
+  }
+}
+
+// Check cookies for potentially sensitive data
+function checkCookies(vulnerabilities) {
+  try {
+    const cookies = document.cookie.split(';');
+    
+    // Patterns that might indicate sensitive information
+    const sensitivePatterns = [
+      { pattern: /password|passwd|pwd|secret/i, type: 'Password' },
+      { pattern: /token|jwt|auth|api.?key/i, type: 'Authentication Token' },
+      { pattern: /credit|card|cvv|cvc|ccv|cc.?num|cardnum/i, type: 'Credit Card' },
+      { pattern: /ssn|social.?security/i, type: 'Social Security Number' },
+      { pattern: /account|routing|bank/i, type: 'Financial Information' },
+      { pattern: /address|email|phone|mobile|zip|postal/i, type: 'Personal Information' }
+    ];
+    
+    for (const cookie of cookies) {
+      if (!cookie.trim()) continue;
+      
+      const [key, value] = cookie.split('=').map(part => part.trim());
+      
+      // Skip obvious non-sensitive cookies
+      if (key.includes('_ga') || 
+          key.includes('_gid') || 
+          key.includes('visitor') || 
+          key.includes('PHPSESSID') || 
+          key.includes('_utm')) {
+        continue;
+      }
+      
+      // Check for sensitive data in cookie names or values
+      for (const pattern of sensitivePatterns) {
+        if (pattern.pattern.test(key) || (value && pattern.pattern.test(decodeURIComponent(value)))) {
+          // Check if cookie is secure and httpOnly
+          const isSecure = cookie.toLowerCase().includes('secure');
+          const isHttpOnly = cookie.toLowerCase().includes('httponly');
+          
+          if (!isSecure || !isHttpOnly) {
+            vulnerabilities.push({
+              name: 'Insecure Cookie with Sensitive Data',
+              description: `Cookie "${key}" appears to contain ${pattern.type} information but is missing ${!isSecure ? 'Secure' : ''}${!isSecure && !isHttpOnly ? ' and ' : ''}${!isHttpOnly ? 'HttpOnly' : ''} flag(s).`,
+              severity: 'High',
+              location: `Cookie: ${key}`
+            });
+          }
+          break;
+        }
+      }
+      
+      // Check for JWT tokens
+      if (value && /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(decodeURIComponent(value))) {
+        // Check if cookie is secure and httpOnly
+        const isSecure = cookie.toLowerCase().includes('secure');
+        const isHttpOnly = cookie.toLowerCase().includes('httponly');
+        
+        if (!isSecure || !isHttpOnly) {
+          vulnerabilities.push({
+            name: 'JWT Token in Insecure Cookie',
+            description: `Cookie "${key}" contains a JWT token but is missing ${!isSecure ? 'Secure' : ''}${!isSecure && !isHttpOnly ? ' and ' : ''}${!isHttpOnly ? 'HttpOnly' : ''} flag(s).`,
+            severity: 'High',
+            location: `Cookie: ${key}`
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.log('Error checking cookies:', e);
+  }
+}
+
+// Check for sensitive data in JavaScript objects
+function checkJavaScriptObjects(vulnerabilities) {
+  // Get all inline scripts
+  const scripts = document.querySelectorAll('script:not([src])');
+  let scriptContent = '';
+  
+  for (const script of scripts) {
+    scriptContent += script.textContent + '\n';
+  }
+  
+  // Patterns that might indicate sensitive information hardcoded in JavaScript
+  const sensitivePatterns = [
+    { pattern: /password\s*[:=]\s*['"]((?!this).)[^'"]*['"]/i, type: 'Password' },
+    { pattern: /api.?key\s*[:=]\s*['"]([^'"]*)['"]/i, type: 'API Key' },
+    { pattern: /secret\s*[:=]\s*['"]([^'"]*)['"]/i, type: 'Secret' },
+    { pattern: /token\s*[:=]\s*['"]([^'"]*)['"]/i, type: 'Token' },
+    { pattern: /access.?token\s*[:=]\s*['"]([^'"]*)['"]/i, type: 'Access Token' },
+    { pattern: /credit.?card\s*[:=]\s*['"]([^'"]*)['"]/i, type: 'Credit Card' }
+  ];
+  
+  // Check each pattern
+  for (const pattern of sensitivePatterns) {
+    const matches = scriptContent.match(pattern.pattern);
+    
+    if (matches) {
+      vulnerabilities.push({
+        name: `${pattern.type} Exposed in JavaScript`,
+        description: `A ${pattern.type.toLowerCase()} appears to be hardcoded in JavaScript. Sensitive data should not be included in client-side code.`,
+        severity: 'High',
+        location: 'JavaScript Code'
+      });
+    }
+  }
+  
+  // Check for what appears to be personal data
+  if (scriptContent.match(/social.?security.?number\s*[:=]\s*['"]([^'"]*)['"]/i) ||
+      scriptContent.match(/ssn\s*[:=]\s*['"]([^'"]*)['"]/i)) {
+    vulnerabilities.push({
+      name: 'Social Security Number Exposed in JavaScript',
+      description: 'What appears to be a Social Security Number is hardcoded in JavaScript. This is highly sensitive data that should never be in client-side code.',
+      severity: 'Critical',
+      location: 'JavaScript Code'
+    });
+  }
+  
+  // Look for AWS keys pattern
+  if (scriptContent.match(/AKIA[0-9A-Z]{16}/)) {
+    vulnerabilities.push({
+      name: 'AWS Access Key Exposed',
+      description: 'What appears to be an AWS Access Key ID is present in the JavaScript code. Cloud provider credentials should never be exposed in client-side code.',
+      severity: 'Critical',
+      location: 'JavaScript Code'
+    });
+  }
+}
+
+// Check input fields with potentially sensitive information
+function checkSensitiveInputs(vulnerabilities) {
+  // Look for sensitive form fields that are not properly protected
+  const passwordInputs = document.querySelectorAll('input[type="password"]');
+  
+  for (const input of passwordInputs) {
+    // Check if autocomplete is not disabled for password fields
+    if (!input.getAttribute('autocomplete') || input.getAttribute('autocomplete') !== 'off') {
+      vulnerabilities.push({
+        name: 'Password Field Without Autocomplete Protection',
+        description: 'Password field allows browser autocomplete, which may store the password insecurely or fill it automatically in unsafe contexts.',
+        severity: 'Low',
+        location: `Password field ${input.name ? 'name="' + input.name + '"' : (input.id ? 'id="' + input.id + '"' : '')}`
+      });
+    }
+  }
+  
+  // Check for credit card fields
+  const creditCardInputs = Array.from(document.querySelectorAll('input[type="text"], input[type="tel"], input[type="number"]')).filter(input => {
+    const name = (input.name || '').toLowerCase();
+    const id = (input.id || '').toLowerCase();
+    const placeholder = (input.getAttribute('placeholder') || '').toLowerCase();
+    
+    return name.includes('card') || name.includes('credit') || name.includes('cc') ||
+           id.includes('card') || id.includes('credit') || id.includes('cc') ||
+           placeholder.includes('card') || placeholder.includes('credit') || placeholder.includes('cc');
+  });
+  
+  for (const input of creditCardInputs) {
+    // Check if credit card form is submitted over HTTPS
+    const form = input.closest('form');
+    
+    if (form) {
+      const action = form.getAttribute('action');
+      
+      if (action && action.startsWith('http:')) {
+        vulnerabilities.push({
+          name: 'Credit Card Information Submitted Insecurely',
+          description: 'A form containing what appears to be credit card information is submitted over unencrypted HTTP. Financial information should always be transmitted using HTTPS.',
+          severity: 'Critical',
+          location: `Form with action="${action}"`
+        });
+      }
+    }
+  }
+}
+
+// Check for sensitive data in data attributes
+function checkDataAttributes(vulnerabilities) {
+  // Get all elements in the document
+  const allElements = document.querySelectorAll('*');
+  
+  // Patterns that might indicate sensitive information
+  const sensitivePatterns = [
+    { pattern: /password|passwd|pwd|secret/i, type: 'Password' },
+    { pattern: /token|jwt|auth|api.?key/i, type: 'Authentication Token' },
+    { pattern: /credit|card|cvv|cvc|ccv|cc.?num|cardnum/i, type: 'Credit Card' },
+    { pattern: /ssn|social.?security/i, type: 'Social Security Number' },
+    { pattern: /account|routing|bank/i, type: 'Financial Information' },
+    { pattern: /address|email|phone|mobile|zip|postal/i, type: 'Personal Information' }
+  ];
+  
+  for (const element of allElements) {
+    // Filter only attributes that start with 'data-'
+    const dataAttributes = Array.from(element.attributes)
+      .filter(attr => attr.name.startsWith('data-'))
+      .map(attr => ({ name: attr.name, value: attr.value }));
+    
+    // Skip if element has no data attributes
+    if (dataAttributes.length === 0) continue;
+    
+    for (const attr of dataAttributes) {
+      // Check each sensitive pattern
+      for (const pattern of sensitivePatterns) {
+        if (pattern.pattern.test(attr.name) || pattern.pattern.test(attr.value)) {
+          vulnerabilities.push({
+            name: 'Sensitive Data in HTML Attribute',
+            description: `Potential ${pattern.type} information found in a data attribute. Sensitive data should not be stored in HTML attributes as it's easily accessible.`,
+            severity: 'Medium',
+            location: `Element <${element.tagName.toLowerCase()}> with attribute ${attr.name}="${attr.value}"`
+          });
+          break;
+        }
+      }
+      
+      // Check for JWT tokens specifically
+      if (attr.value && /^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(attr.value)) {
+        vulnerabilities.push({
+          name: 'JWT Token Exposed in HTML Attribute',
+          description: 'A JWT token is exposed in an HTML data attribute. This can be easily accessed by any JavaScript on the page, including potential XSS payloads.',
+          severity: 'High',
+          location: `Element <${element.tagName.toLowerCase()}> with attribute ${attr.name}`
+        });
+      }
+    }
   }
 } 
