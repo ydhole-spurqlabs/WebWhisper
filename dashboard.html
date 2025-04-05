@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Web Security Scanner Dashboard</title>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', sans-serif;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+      background-color: #f9f9f9;
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .logo {
+      width: 40px;
+      height: 40px;
+      background-color: #5B5BFF;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 15px;
+    }
+    
+    .logo svg {
+      width: 22px;
+      height: 22px;
+      fill: white;
+    }
+    
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin: 0;
+    }
+    
+    .summary {
+      background-color: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .summary-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 15px 0;
+      color: #333;
+    }
+    
+    .summary-stats {
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .stat-card {
+      background-color: #f8f8f8;
+      border-radius: 6px;
+      padding: 15px;
+      width: 30%;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #5B5BFF;
+      margin-bottom: 5px;
+    }
+    
+    .stat-label {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .vulnerabilities {
+      background-color: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .vuln-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 0 0 15px 0;
+      color: #333;
+    }
+    
+    .vuln-filters {
+      display: flex;
+      margin-bottom: 15px;
+    }
+    
+    .filter-btn {
+      background-color: #f0f0f0;
+      border: none;
+      padding: 8px 12px;
+      margin-right: 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .filter-btn.active {
+      background-color: #5B5BFF;
+      color: white;
+    }
+    
+    .vuln-item {
+      border-left: 4px solid #ccc;
+      background-color: #f8f8f8;
+      margin-bottom: 10px;
+      padding: 15px;
+      border-radius: 0 4px 4px 0;
+    }
+    
+    .vuln-item.high {
+      border-left-color: #ea4335;
+    }
+    
+    .vuln-item.medium {
+      border-left-color: #fbbc05;
+    }
+    
+    .vuln-item.low {
+      border-left-color: #34a853;
+    }
+    
+    .vuln-item h3 {
+      margin: 0 0 8px 0;
+      font-size: 16px;
+    }
+    
+    .vuln-severity {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin-left: 8px;
+      color: white;
+    }
+    
+    .vuln-severity.high {
+      background-color: #ea4335;
+    }
+    
+    .vuln-severity.medium {
+      background-color: #fbbc05;
+    }
+    
+    .vuln-severity.low {
+      background-color: #34a853;
+    }
+    
+    .vuln-description {
+      margin: 8px 0;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    .vuln-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #666;
+      margin-top: 8px;
+    }
+    
+    .vuln-location {
+      font-family: monospace;
+      background-color: #eee;
+      padding: 2px 5px;
+      border-radius: 3px;
+    }
+    
+    .no-vulnerabilities {
+      text-align: center;
+      padding: 30px;
+      color: #666;
+    }
+    
+    footer {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M12,1L3,5v6c0,5.55,3.84,10.74,9,12c5.16-1.26,9-6.45,9-12V5L12,1z M12,11.99h7c-0.53,4.12-3.28,7.79-7,8.94V12H5V6.3 l7-3.11V11.99z"/>
+      </svg>
+    </div>
+    <h1>Web Security Scanner Dashboard</h1>
+  </div>
+  
+  <div class="summary">
+    <h2 class="summary-title">Scan Summary</h2>
+    <div class="summary-stats">
+      <div class="stat-card">
+        <div class="stat-value" id="pagesScanned">10</div>
+        <div class="stat-label">Pages Scanned</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="scriptsAnalyzed">38</div>
+        <div class="stat-label">Scripts Analyzed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="issuesFound">4</div>
+        <div class="stat-label">Issues Found</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="vulnerabilities">
+    <h2 class="vuln-title">Detected Vulnerabilities</h2>
+    <div class="vuln-filters">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="high">High</button>
+      <button class="filter-btn" data-filter="medium">Medium</button>
+      <button class="filter-btn" data-filter="low">Low</button>
+    </div>
+    
+    <div id="vulnerabilitiesList">
+      <!-- Vulnerabilities will be loaded here dynamically -->
+      
+      <!-- Example vulnerability items (will be replaced by actual data) -->
+      <div class="vuln-item high">
+        <h3>Insecure Form Submission <span class="vuln-severity high">High</span></h3>
+        <p class="vuln-description">This page contains a form that submits data over unencrypted HTTP, which could allow attackers to intercept sensitive information.</p>
+        <div class="vuln-meta">
+          <span class="vuln-location">Form with action="http://example.com/submit"</span>
+          <span class="vuln-url">example.com</span>
+        </div>
+      </div>
+      
+      <div class="vuln-item medium">
+        <h3>Vulnerable Library Detected <span class="vuln-severity medium">Medium</span></h3>
+        <p class="vuln-description">The page is using jQuery version 1.8.3, which has known security vulnerabilities. Update to a newer version.</p>
+        <div class="vuln-meta">
+          <span class="vuln-location">jQuery 1.8.3</span>
+          <span class="vuln-url">example.com/store</span>
+        </div>
+      </div>
+      
+      <div class="vuln-item low">
+        <h3>Mixed Content: Image <span class="vuln-severity low">Low</span></h3>
+        <p class="vuln-description">This secure page is loading an image over an insecure connection, which may trigger browser warnings.</p>
+        <div class="vuln-meta">
+          <span class="vuln-location">http://example.com/images/logo.png</span>
+          <span class="vuln-url">example.com/about</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <footer>
+    <p>Web Security Scanner v1.2.0 | Last scan: <span id="lastScanTime">April 15, 2023, 10:42 AM</span></p>
+  </footer>
+
+  <script src="dashboard.js"></script>
+</body>
+</html> 
