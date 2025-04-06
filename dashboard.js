@@ -815,56 +815,118 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('Grouped vulnerabilities by category:', categories);
     
-    // Create HTML for each category
-    let html = '';
-    for (const [category, vulns] of Object.entries(categories)) {
-      // Assign default severity values if missing
-      const severityCounts = {
-        high: vulns.filter(v => (v.severity || '').toLowerCase() === 'high').length,
-        medium: vulns.filter(v => (v.severity || '').toLowerCase() === 'medium').length,
-        low: vulns.filter(v => (v.severity || '').toLowerCase() === 'low' || !v.severity).length
+    // Get category-specific class names for styling
+    function getCategoryClasses(category) {
+      const baseClasses = {
+        'Cross-Site Scripting (XSS)': {
+          icon: 'category-icon-xss',
+          badge: 'category-badge-xss'
+        },
+        'Client-Side Security Misconfigurations': {
+          icon: 'category-icon-security',
+          badge: 'category-badge-security'
+        },
+        'Client-Side Data Exposure': {
+          icon: 'category-icon-data',
+          badge: 'category-badge-data'
+        },
+        'JavaScript-Specific Vulnerabilities': {
+          icon: 'category-icon-js',
+          badge: 'category-badge-js'
+        },
+        'Dependency Vulnerabilities': {
+          icon: 'category-icon-dependency',
+          badge: 'category-badge-dependency'
+        },
+        'Event Handling Vulnerabilities': {
+          icon: 'category-icon-event',
+          badge: 'category-badge-event'
+        },
+        'Network-Related Vulnerabilities': {
+          icon: 'category-icon-network',
+          badge: 'category-badge-network'
+        },
+        'Request Forgery Vulnerabilities': {
+          icon: 'category-icon-forgery',
+          badge: 'category-badge-forgery'
+        }
       };
       
-      const totalIssues = vulns.length;
-      const severityClass = severityCounts.high > 0 ? 'high' : 
-                          severityCounts.medium > 0 ? 'medium' : 'low';
-      
-      html += `
-        <div class="accordion">
-          <div class="accordion-header flex items-center justify-between p-4 rounded-t">
-            <div class="flex items-center">
-              <div class="w-8 h-8 flex items-center justify-center rounded-full bg-${severityClass}-100 mr-3">
-                <i class="ri-${getCategoryIcon(category)} text-${severityClass}-500"></i>
+      return baseClasses[category] || { icon: '', badge: '' };
+    }
+    
+    // Create HTML for each category
+    let html = '';
+    let isFirst = true;
+    
+    // Process categories in a specific order to match the image, starting with XSS
+    const orderedCategories = [
+      'Cross-Site Scripting (XSS)',
+      'Client-Side Security Misconfigurations',
+      'Client-Side Data Exposure',
+      'JavaScript-Specific Vulnerabilities',
+      'Dependency Vulnerabilities',
+      'Event Handling Vulnerabilities',
+      'Network-Related Vulnerabilities',
+      'Request Forgery Vulnerabilities'
+    ];
+    
+    // First process categories in our desired order
+    for (const categoryName of orderedCategories) {
+      if (categories[categoryName]) {
+        const vulns = categories[categoryName];
+        // Get category-specific styling classes
+        const categoryClasses = getCategoryClasses(categoryName);
+        
+        // Get issue count
+        const totalIssues = vulns.length;
+        
+        // Determine if this accordion should be open initially
+        const isActive = isFirst;
+        const activeClass = isActive ? 'active' : '';
+        const arrowStyle = isActive ? 'transform: rotate(180deg);' : '';
+        const heightStyle = isActive ? `max-height: ${vulns.length * 60 + 100}px;` : '';
+        
+        html += `
+          <div class="accordion">
+            <div class="accordion-header flex items-center justify-between p-4 rounded-t">
+              <div class="flex items-center">
+                <div class="w-8 h-8 flex items-center justify-center rounded-full ${categoryClasses.icon} mr-3">
+                  <i class="ri-${getCategoryIcon(categoryName)} ri-lg"></i>
+                </div>
+                <h3 class="font-medium">${categoryName}</h3>
+                <span class="ml-3 px-2 py-1 text-xs font-medium rounded ${categoryClasses.badge}">
+                  ${totalIssues} Issues
+                </span>
               </div>
-              <h3 class="font-medium">${category}</h3>
-              <span class="ml-3 px-2 py-1 text-xs font-medium rounded bg-${severityClass}-100 text-${severityClass}-500">
-                ${totalIssues} Issues
-              </span>
+              <i class="ri-arrow-down-s-line ri-lg" style="${arrowStyle}"></i>
             </div>
-            <i class="ri-arrow-down-s-line ri-lg"></i>
-          </div>
-          <div class="accordion-content">
-            <div class="p-4">
-              <div class="overflow-x-auto">
-                <table class="w-full">
-                  <thead>
-                    <tr class="text-left text-sm font-medium text-gray-500 border-b border-gray-200">
-                      <th class="pb-3 pr-4">Type</th>
-                      <th class="pb-3 px-4">Severity</th>
-                      <th class="pb-3 px-4">Affected Element</th>
-                      <th class="pb-3 px-4">Status</th>
-                      <th class="pb-3 pl-4">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${vulns.map(vuln => createVulnerabilityRow(vuln)).join('')}
-                  </tbody>
-                </table>
+            <div class="accordion-content ${activeClass}" style="${heightStyle}">
+              <div class="p-4">
+                <div class="overflow-x-auto">
+                  <table class="w-full">
+                    <thead>
+                      <tr class="text-left text-sm font-medium text-gray-500 border-b border-gray-200">
+                        <th class="pb-3 pr-4">Type</th>
+                        <th class="pb-3 px-4">Severity</th>
+                        <th class="pb-3 px-4">Affected Element</th>
+                        <th class="pb-3 px-4">Status</th>
+                        <th class="pb-3 pl-4">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${vulns.map(vuln => createVulnerabilityRow(vuln)).join('')}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      `;
+        `;
+        
+        // After processing the first category, set isFirst to false
+        if (isFirst) isFirst = false;
+      }
     }
     
     vulnerabilityCategoriesElement.innerHTML = html;
@@ -949,25 +1011,40 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add fallbacks for missing properties
     const severity = vuln.severity || 'Medium';
     const status = vuln.status || 'Detected';
-    const severityClass = severity.toLowerCase();
-    const statusClass = status.toLowerCase();
+    
+    // Map status to colors that match the image
+    const statusClasses = {
+      'Detected': 'bg-red-100 text-red-800',
+      'Flagged': 'bg-orange-100 text-orange-800',
+      'Not Detected': 'bg-green-100 text-green-800'
+    };
+    
+    // Map severity to colors that match the image
+    const severityClasses = {
+      'High': 'bg-red-100 text-red-800',
+      'Medium': 'bg-orange-100 text-orange-800',
+      'Low': 'bg-yellow-100 text-yellow-800'
+    };
+    
+    const statusClass = statusClasses[status] || statusClasses['Detected'];
+    const severityClass = severityClasses[severity] || severityClasses['Medium'];
     
     return `
       <tr class="table-row">
         <td class="py-3 pr-4">${vuln.name || 'Unknown Vulnerability'}</td>
         <td class="py-3 px-4">
-          <span class="inline-block px-2 py-1 text-xs font-medium rounded severity-${severityClass}">
+          <span class="inline-block px-2 py-1 text-xs font-medium rounded ${severityClass}">
             ${severity}
           </span>
         </td>
         <td class="py-3 px-4 text-sm">${vuln.location || 'N/A'}</td>
         <td class="py-3 px-4">
-          <span class="inline-block px-2 py-1 text-xs font-medium rounded status-${statusClass}">
+          <span class="inline-block px-2 py-1 text-xs font-medium rounded ${statusClass}">
             ${status}
           </span>
         </td>
         <td class="py-3 pl-4">
-          <button class="view-details px-3 py-1.5 text-sm text-primary border border-primary rounded-button hover:bg-primary hover:text-white whitespace-nowrap" data-vuln-id="${vuln.id || 'unknown'}">
+          <button class="view-details px-3 py-1.5 text-sm text-blue-700 border border-blue-700 rounded-button hover:bg-blue-700 hover:text-white whitespace-nowrap" data-vuln-id="${vuln.id || 'unknown'}">
             View Details
           </button>
         </td>

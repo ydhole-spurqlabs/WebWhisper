@@ -135,6 +135,12 @@ color: #22c55e;
 background-color: rgba(249, 115, 22, 0.15);
 color: #f97316;
 }
+.accordion {
+margin-bottom: 8px;
+border-radius: 8px;
+overflow: hidden;
+box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
 .accordion-header {
 background-color: white;
 border: 1px solid #e5e7eb;
@@ -185,6 +191,87 @@ max-height: 90vh;
 overflow-y: auto;
 padding: 1.5rem;
 }
+
+/* Category-specific styles */
+.category-icon-xss {
+background-color: #ffebee !important;
+color: #ef5350 !important;
+}
+.category-icon-security {
+background-color: #fff8e1 !important;
+color: #ffa726 !important;
+}
+.category-icon-data {
+background-color: #fffde7 !important;
+color: #ffee58 !important;
+}
+.category-icon-js {
+background-color: #e8eaf6 !important;
+color: #5c6bc0 !important;
+}
+.category-icon-dependency {
+background-color: #f3e5f5 !important;
+color: #ab47bc !important;
+}
+.category-icon-event {
+background-color: #e0f2f1 !important;
+color: #26a69a !important;
+}
+.category-icon-network {
+background-color: #e3f2fd !important;
+color: #42a5f5 !important;
+}
+.category-icon-forgery {
+background-color: #fce4ec !important;
+color: #ec407a !important;
+}
+
+.category-badge-xss {
+background-color: #ffcdd2 !important;
+color: #c62828 !important;
+}
+.category-badge-security {
+background-color: #ffe0b2 !important;
+color: #ef6c00 !important;
+}
+.category-badge-data {
+background-color: #fff9c4 !important;
+color: #f9a825 !important;
+}
+.category-badge-js {
+background-color: #c5cae9 !important;
+color: #3949ab !important;
+}
+.category-badge-dependency {
+background-color: #e1bee7 !important;
+color: #8e24aa !important;
+}
+.category-badge-event {
+background-color: #b2dfdb !important;
+color: #00897b !important;
+}
+.category-badge-network {
+background-color: #bbdefb !important;
+color: #1976d2 !important;
+}
+.category-badge-forgery {
+background-color: #f8bbd0 !important;
+color: #c2185b !important;
+}
+
+.accordion {
+border: 1px solid #e5e7eb;
+}
+
+.view-details {
+color: #3949ab;
+border-color: #3949ab;
+}
+.view-details:hover {
+background-color: #3949ab;
+color: white;
+}
+
 /* Layout styles */
 .flex {
 display: flex;
@@ -714,8 +801,62 @@ margin: 0;
 </div>
 </div>
 <!-- Accordion -->
-<div id="vulnerability-categories" class="space-y-4">
+<div id="vulnerability-categories" class="space-y-2">
 <!-- Categories will be dynamically populated here -->
+<!-- Example structure of first expanded category (for styling reference) -->
+<div class="accordion" style="display: none;">
+<div class="accordion-header flex items-center justify-between p-4 rounded-t">
+<div class="flex items-center">
+<div class="w-8 h-8 flex items-center justify-center rounded-full category-icon-xss mr-3">
+<i class="ri-code-line ri-lg"></i>
+</div>
+<h3 class="font-medium">Cross-Site Scripting (XSS)</h3>
+<span class="ml-3 px-2 py-1 text-xs font-medium rounded category-badge-xss">
+3 Issues
+</span>
+</div>
+<i class="ri-arrow-down-s-line ri-lg" style="transform: rotate(180deg);"></i>
+</div>
+<div class="accordion-content active" style="max-height: 400px;">
+<div class="p-4">
+<div class="overflow-x-auto">
+<table class="w-full">
+<thead>
+<tr class="text-left text-sm font-medium text-gray-500 border-b border-gray-200">
+<th class="pb-3 pr-4">Type</th>
+<th class="pb-3 px-4">Severity</th>
+<th class="pb-3 px-4">Affected Element</th>
+<th class="pb-3 px-4">Status</th>
+<th class="pb-3 pl-4">Actions</th>
+</tr>
+</thead>
+<tbody>
+<tr class="table-row">
+<td class="py-3 pr-4">Reflected XSS</td>
+<td class="py-3 px-4">
+<span class="inline-block px-2 py-1 text-xs font-medium rounded bg-red-100 text-red-800">
+High
+</span>
+</td>
+<td class="py-3 px-4 text-sm">search.js:42</td>
+<td class="py-3 px-4">
+<span class="inline-block px-2 py-1 text-xs font-medium rounded bg-red-100 text-red-800">
+Detected
+</span>
+</td>
+<td class="py-3 pl-4">
+<button class="view-details px-3 py-1.5 text-sm text-blue-700 border border-blue-700 rounded-button hover:bg-blue-700 hover:text-white whitespace-nowrap">
+View Details
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
 </div>
 </main>
 <!-- Bottom Panel -->
@@ -798,6 +939,7 @@ Recommended fix description will be displayed here.
 <button id="export-detail-btn" class="px-4 py-2 text-sm text-primary border border-primary rounded-button hover:bg-primary hover:text-white whitespace-nowrap">
 <i class="ri-file-download-line mr-1"></i> Export Details
 </button>
+</div>
 </div>
 </div>
 </div>
