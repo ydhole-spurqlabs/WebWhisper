@@ -231,7 +231,19 @@ function processVulnerabilities(vulnerabilities, url) {
     }
   });
   
-  // Save to storage
+  // Since storage might have been cleared in popup.js, ensure we're appending
+  // to the existing collection or creating a new one
+  chrome.storage.local.get('vulnerabilities', function(data) {
+    const existingVulns = data.vulnerabilities || [];
+    const updatedVulns = [...existingVulns, ...vulnerabilitiesFound];
+    
+    // Update vulnerabilities in storage
+    chrome.storage.local.set({
+      vulnerabilities: updatedVulns
+    });
+  });
+  
+  // Save to vulnerability history storage
   saveVulnerability(vulnerabilities, url);
 }
 

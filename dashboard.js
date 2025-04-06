@@ -26,6 +26,28 @@ document.addEventListener('DOMContentLoaded', function() {
   // Function to load data from Chrome storage
   function loadData() {
     chrome.storage.local.get(['lastScanResults', 'lastScanTime', 'vulnerabilities', 'vulnHistory'], function(data) {
+      // Check if we have any data
+      const hasData = data.lastScanResults || data.lastScanTime || 
+                      (data.vulnerabilities && data.vulnerabilities.length > 0);
+      
+      if (!hasData) {
+        // No data available - show empty state
+        pagesScannedElement.textContent = '0';
+        scriptsAnalyzedElement.textContent = '0';
+        issuesFoundElement.textContent = '0';
+        
+        if (lastScanTimeElement) {
+          lastScanTimeElement.textContent = 'No scan performed yet';
+        }
+        
+        vulnerabilitiesListElement.innerHTML = `
+          <div class="no-vulnerabilities">
+            <p>No vulnerabilities detected. Start a new scan from the extension popup.</p>
+          </div>
+        `;
+        return;
+      }
+      
       // Update summary stats
       updateSummaryStats(data.lastScanResults);
       

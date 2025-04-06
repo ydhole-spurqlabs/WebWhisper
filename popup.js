@@ -53,6 +53,21 @@ document.addEventListener('DOMContentLoaded', function() {
       isScanning = true;
       isPaused = false;
       updateUIState();
+
+      // Clear all extension storage local variables except settings
+      chrome.storage.local.get('settings', function(data) {
+        const settings = data.settings;
+        chrome.storage.local.clear(function() {
+          // Restore settings after clearing storage
+          if (settings) {
+            chrome.storage.local.set({ settings: settings }, function() {
+              console.log('Cleared all storage except settings for fresh scan');
+            });
+          } else {
+            console.log('Cleared all storage for fresh scan');
+          }
+        });
+      });
       
       // Hide scan stats if visible
       scanStats.classList.remove('visible');
