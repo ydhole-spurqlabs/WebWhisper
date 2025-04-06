@@ -513,6 +513,13 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateCharts(vulnerabilities) {
     if (!vulnerabilities || vulnerabilities.length === 0) return;
     
+    // Define chart colors to match the image
+    const colors = {
+      high: '#FF8A65',    // Coral/salmon color for high
+      medium: '#FFB74D',  // Orange for medium
+      low: '#4DB6AC'      // Teal for low
+    };
+    
     // Group vulnerabilities by category and severity
     const categories = {};
     const severities = {
@@ -555,6 +562,21 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
     
+    // Get short names for categories to display on x-axis
+    function getShortName(category) {
+      const shortNames = {
+        'Cross-Site Scripting (XSS)': 'XSS',
+        'Client-Side Security Misconfigurations': 'Misconfig',
+        'Client-Side Data Exposure': 'Data Exp',
+        'JavaScript-Specific Vulnerabilities': 'JS Vuln',
+        'Dependency Vulnerabilities': 'Dependency',
+        'Event Handling Vulnerabilities': 'Event',
+        'Network-Related Vulnerabilities': 'Network',
+        'Request Forgery Vulnerabilities': 'Forgery'
+      };
+      return shortNames[category] || category;
+    }
+    
     // Update bar chart
     const barChart = echarts.init(document.getElementById('bar-chart'));
     
@@ -565,12 +587,20 @@ document.addEventListener('DOMContentLoaded', function() {
       return totalB - totalA;
     });
     
-    const categoryNames = sortedCategories.map(entry => entry[0]);
+    const categoryNames = sortedCategories.map(entry => getShortName(entry[0]));
     const highData = sortedCategories.map(entry => entry[1].high);
     const mediumData = sortedCategories.map(entry => entry[1].medium);
     const lowData = sortedCategories.map(entry => entry[1].low);
     
     const barOption = {
+      title: {
+        text: 'Issue Category Distribution',
+        left: 'left',
+        textStyle: {
+          fontSize: 14,
+          fontWeight: 'normal'
+        }
+      },
       animation: false,
       tooltip: {
         trigger: 'axis',
@@ -599,13 +629,18 @@ document.addEventListener('DOMContentLoaded', function() {
       },
       legend: {
         data: ['High', 'Medium', 'Low'],
-        bottom: 0
+        bottom: 0,
+        textStyle: {
+          color: '#666'
+        },
+        itemWidth: 15,
+        itemHeight: 10
       },
       grid: {
         left: '3%',
         right: '4%',
-        bottom: '10%',
-        top: '3%',
+        bottom: '15%',
+        top: '15%',
         containLabel: true
       },
       xAxis: {
@@ -617,27 +652,21 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         },
         axisLabel: {
-          color: '#1f2937',
-          rotate: 30,
-          interval: 0,
-          formatter: function(value) {
-            // Shorten category names if too long
-            if (value.length > 20) {
-              return value.substring(0, 17) + '...';
-            }
-            return value;
-          }
+          color: '#666',
+          rotate: 0,
+          interval: 0
         }
       },
       yAxis: {
         type: 'value',
         axisLine: {
-          lineStyle: {
-            color: '#e5e7eb'
-          }
+          show: false
+        },
+        axisTick: {
+          show: false
         },
         axisLabel: {
-          color: '#1f2937'
+          color: '#666'
         },
         splitLine: {
           lineStyle: {
@@ -652,12 +681,12 @@ document.addEventListener('DOMContentLoaded', function() {
           stack: 'total',
           data: highData,
           itemStyle: {
-            color: 'rgba(239, 68, 68, 0.85)',
-            borderRadius: [4, 4, 0, 0]
+            color: colors.high,
+            borderRadius: [0, 0, 0, 0]
           },
           emphasis: {
             itemStyle: {
-              color: 'rgba(239, 68, 68, 1)'
+              color: colors.high
             }
           }
         },
@@ -667,12 +696,12 @@ document.addEventListener('DOMContentLoaded', function() {
           stack: 'total',
           data: mediumData,
           itemStyle: {
-            color: 'rgba(249, 115, 22, 0.85)',
+            color: colors.medium,
             borderRadius: [0, 0, 0, 0]
           },
           emphasis: {
             itemStyle: {
-              color: 'rgba(249, 115, 22, 1)'
+              color: colors.medium
             }
           }
         },
@@ -682,12 +711,12 @@ document.addEventListener('DOMContentLoaded', function() {
           stack: 'total',
           data: lowData,
           itemStyle: {
-            color: 'rgba(234, 179, 8, 0.85)',
-            borderRadius: [0, 0, 4, 4]
+            color: colors.low,
+            borderRadius: [0, 0, 0, 0]
           },
           emphasis: {
             itemStyle: {
-              color: 'rgba(234, 179, 8, 1)'
+              color: colors.low
             }
           }
         }
@@ -698,6 +727,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update pie chart
     const pieChart = echarts.init(document.getElementById('pie-chart'));
     const pieOption = {
+      title: {
+        text: 'Severity Breakdown',
+        left: 'center',
+        textStyle: {
+          fontSize: 14,
+          fontWeight: 'normal'
+        }
+      },
       animation: false,
       tooltip: {
         trigger: 'item',
@@ -713,20 +750,28 @@ document.addEventListener('DOMContentLoaded', function() {
       },
       legend: {
         orient: 'vertical',
-        right: 10,
+        right: '5%',
         top: 'center',
         textStyle: {
-          color: '#1f2937'
-        }
+          color: '#666'
+        },
+        itemWidth: 15,
+        itemHeight: 10,
+        data: [
+          { name: 'High', icon: 'rect' },
+          { name: 'Medium', icon: 'rect' },
+          { name: 'Low', icon: 'rect' }
+        ]
       },
       series: [
         {
           name: 'Severity',
           type: 'pie',
           radius: ['40%', '70%'],
+          center: ['40%', '50%'],
           avoidLabelOverlap: false,
           itemStyle: {
-            borderRadius: 4,
+            borderRadius: 0,
             borderColor: '#fff',
             borderWidth: 2
           },
@@ -744,9 +789,9 @@ document.addEventListener('DOMContentLoaded', function() {
             show: false
           },
           data: [
-            { value: severities.high, name: 'High', itemStyle: { color: 'rgba(239, 68, 68, 0.85)' } },
-            { value: severities.medium, name: 'Medium', itemStyle: { color: 'rgba(249, 115, 22, 0.85)' } },
-            { value: severities.low, name: 'Low', itemStyle: { color: 'rgba(234, 179, 8, 0.85)' } }
+            { value: severities.high, name: 'High', itemStyle: { color: colors.high } },
+            { value: severities.medium, name: 'Medium', itemStyle: { color: colors.medium } },
+            { value: severities.low, name: 'Low', itemStyle: { color: colors.low } }
           ]
         }
       ]

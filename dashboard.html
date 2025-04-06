@@ -102,26 +102,25 @@ transform: translateX(24px);
 }
 .card {
 background-color: white;
-border: 1px solid #e5e7eb;
-transition: all 0.3s;
+border: 1px solid #f0f0f0;
 border-radius: 8px;
 padding: 1.5rem;
+box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 .card:hover {
-transform: translateY(-2px);
-box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
-.severity-high {
-background-color: rgba(239, 68, 68, 0.15);
-color: #ef4444;
+.severity-high, .bg-red-100.text-red-800 {
+background-color: rgba(255, 138, 101, 0.15) !important;
+color: #d84315 !important;
 }
-.severity-medium {
-background-color: rgba(249, 115, 22, 0.15);
-color: #f97316;
+.severity-medium, .bg-orange-100.text-orange-800 {
+background-color: rgba(255, 183, 77, 0.15) !important;
+color: #ef6c00 !important;
 }
-.severity-low {
-background-color: rgba(234, 179, 8, 0.15);
-color: #eab308;
+.severity-low, .bg-yellow-100.text-yellow-800 {
+background-color: rgba(77, 182, 172, 0.15) !important;
+color: #00796b !important;
 }
 .status-detected {
 background-color: rgba(239, 68, 68, 0.15);
@@ -770,12 +769,10 @@ margin: 0;
 <!-- Charts Row -->
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
 <div class="card col-span-2">
-<h3 class="text-lg font-medium mb-4">Issue Category Distribution</h3>
-<div id="bar-chart" class="w-full h-64"></div>
+<div id="bar-chart" class="w-full h-80" style="min-height: 320px; display: block;"></div>
 </div>
 <div class="card">
-<h3 class="text-lg font-medium mb-4">Severity Breakdown</h3>
-<div id="pie-chart" class="w-full h-64"></div>
+<div id="pie-chart" class="w-full h-80" style="min-height: 320px; display: block;"></div>
 </div>
 </div>
 <!-- Vulnerability Categories -->
