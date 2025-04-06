@@ -697,18 +697,18 @@ margin: 0;
 <h2 class="text-xl font-semibold">Vulnerability Categories</h2>
 <div class="flex items-center">
 <div class="relative mr-4">
-<input type="text" placeholder="Search vulnerabilities..." class="pl-10 pr-4 py-2 w-64 rounded border-none bg-white shadow-sm">
+<input type="text" id="search-input" placeholder="Search vulnerabilities..." class="pl-10 pr-4 py-2 w-64 rounded border-none bg-white shadow-sm">
 <div class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 flex items-center justify-center">
 <i class="ri-search-line text-gray-400"></i>
 </div>
 </div>
 <div class="flex items-center space-x-2">
 <span class="text-sm text-gray-500">Filter:</span>
-<select class="py-2 pl-3 pr-8 rounded border-none bg-white shadow-sm text-sm">
-<option>All Severities</option>
-<option>High</option>
-<option>Medium</option>
-<option>Low</option>
+<select id="severity-filter" class="py-2 pl-3 pr-8 rounded border-none bg-white shadow-sm text-sm">
+<option value="All Severities">All Severities</option>
+<option value="High">High</option>
+<option value="Medium">Medium</option>
+<option value="Low">Low</option>
 </select>
 </div>
 </div>

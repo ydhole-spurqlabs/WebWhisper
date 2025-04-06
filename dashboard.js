@@ -13,6 +13,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const vulnerabilityCategoriesElement = document.getElementById('vulnerability-categories');
   const modal = document.getElementById('detail-modal');
   const closeModal = document.getElementById('close-modal');
+  const searchInput = document.querySelector('input[placeholder="Search vulnerabilities..."]');
+  const severityFilter = document.querySelector('select');
+  
+  // Store vulnerabilities globally for filtering
+  let allVulnerabilities = [];
   
   // Current vulnerability being shown in the modal
   let currentVulnerability = null;
@@ -51,6 +56,46 @@ document.addEventListener('DOMContentLoaded', function() {
       modal.classList.remove('active');
     }
   });
+  
+  // Search functionality
+  searchInput.addEventListener('input', () => {
+    filterVulnerabilities();
+  });
+  
+  // Severity filter functionality
+  severityFilter.addEventListener('change', () => {
+    filterVulnerabilities();
+  });
+  
+  // Function to filter vulnerabilities based on search and severity filter
+  function filterVulnerabilities() {
+    const searchTerm = searchInput.value.trim().toLowerCase();
+    const severityValue = severityFilter.value;
+    
+    let filteredVulnerabilities = [...allVulnerabilities];
+    
+    // Apply search filter
+    if (searchTerm) {
+      filteredVulnerabilities = filteredVulnerabilities.filter(vuln => {
+        return (
+          (vuln.name && vuln.name.toLowerCase().includes(searchTerm)) ||
+          (vuln.description && vuln.description.toLowerCase().includes(searchTerm)) ||
+          (vuln.category && vuln.category.toLowerCase().includes(searchTerm)) ||
+          (vuln.location && vuln.location.toLowerCase().includes(searchTerm))
+        );
+      });
+    }
+    
+    // Apply severity filter
+    if (severityValue !== 'All Severities') {
+      filteredVulnerabilities = filteredVulnerabilities.filter(vuln => 
+        (vuln.severity || 'Low') === severityValue
+      );
+    }
+    
+    // Display filtered vulnerabilities
+    displayVulnerabilities(filteredVulnerabilities);
+  }
   
   // Load data from storage
   loadData();
@@ -111,15 +156,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // No data available - generate sample data for display purposes
         console.log('No data available, generating sample data');
         const sampleData = generateSampleData();
-        displayVulnerabilities(sampleData.vulnerabilities);
+        allVulnerabilities = sampleData.vulnerabilities;
+        displayVulnerabilities(allVulnerabilities);
         updateSummaryStats(sampleData.lastScanResults);
         updateLastScanTime(new Date().toISOString());
-        updateCharts(sampleData.vulnerabilities);
+        updateCharts(allVulnerabilities);
         return;
       }
       
       // Ensure all vulnerabilities have IDs
-      const processedVulnerabilities = ensureVulnerabilityIds(data.vulnerabilities);
+      allVulnerabilities = ensureVulnerabilityIds(data.vulnerabilities);
       
       // Update summary stats
       updateSummaryStats(data.lastScanResults);
@@ -128,11 +174,11 @@ document.addEventListener('DOMContentLoaded', function() {
       updateLastScanTime(data.lastScanTime);
       
       // Update charts
-      updateCharts(processedVulnerabilities);
+      updateCharts(allVulnerabilities);
       
       // Display vulnerabilities
-      console.log('Displaying vulnerabilities:', processedVulnerabilities);
-      displayVulnerabilities(processedVulnerabilities);
+      console.log('Displaying vulnerabilities:', allVulnerabilities);
+      displayVulnerabilities(allVulnerabilities);
     });
   }
   
@@ -141,13 +187,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const timestamp = new Date().toISOString();
     
     const vulnerabilities = [
+      // 1. Cross-Site Scripting (XSS)
       {
         id: 'sample-vuln-1',
         name: 'Reflected XSS in Search Form',
         description: 'The search form vulnerable to cross-site scripting attacks through unsanitized input.',
         severity: 'High',
         location: 'search.js:42',
-        category: 'XSS',
+        category: 'Cross-Site Scripting (XSS)',
         status: 'Detected',
         stepsToReproduce: [
           'Navigate to the search form',
@@ -171,6 +218,8 @@ document.addEventListener('DOMContentLoaded', function() {
         ],
         timestamp: timestamp
       },
+      
+      // 2. Client-Side Security Misconfigurations
       {
         id: 'sample-vuln-2',
         name: 'Missing Content Security Policy',
@@ -198,6 +247,8 @@ document.addEventListener('DOMContentLoaded', function() {
         ],
         timestamp: timestamp
       },
+      
+      // 3. Client-Side Data Exposure
       {
         id: 'sample-vuln-3',
         name: 'API Key Exposed in Frontend Code',
@@ -227,6 +278,8 @@ document.addEventListener('DOMContentLoaded', function() {
         ],
         timestamp: timestamp
       },
+      
+      // 4. Network-Related Vulnerabilities
       {
         id: 'sample-vuln-4',
         name: 'Insecure Form Submission',
@@ -251,6 +304,132 @@ document.addEventListener('DOMContentLoaded', function() {
           {
             title: 'OWASP Transport Layer Protection',
             url: 'https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/09-Testing_for_Weak_Cryptography/01-Testing_for_Weak_SSL_TLS_Ciphers'
+          }
+        ],
+        timestamp: timestamp
+      },
+      
+      // 5. Dependency Vulnerabilities
+      {
+        id: 'sample-vuln-5',
+        name: 'Vulnerable jQuery Version',
+        description: 'The website is using jQuery v1.8.3 which contains known security vulnerabilities.',
+        severity: 'High',
+        location: 'jquery.min.js',
+        category: 'Dependency Vulnerabilities',
+        status: 'Detected',
+        stepsToReproduce: [
+          'Inspect loaded JavaScript resources',
+          'Identify jQuery version from file comments or console output',
+          'Verify version against known CVEs'
+        ],
+        impact: [
+          'Remote code execution',
+          'Cross-site scripting vulnerability',
+          'Data exfiltration'
+        ],
+        vulnerableCode: '<script src="https://code.jquery.com/jquery-1.8.3.min.js"></script>',
+        fixDescription: 'Update to the latest version of jQuery.',
+        fixedCode: '<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>',
+        references: [
+          {
+            title: 'jQuery Security Advisories',
+            url: 'https://jquery.com/upgrade-guide/3.0/#jquery-core'
+          }
+        ],
+        timestamp: timestamp
+      },
+      
+      // 6. Event Handling Vulnerabilities
+      {
+        id: 'sample-vuln-6',
+        name: 'Unvalidated Event Handler User Input',
+        description: 'Event handler accepts and processes user input without proper validation.',
+        severity: 'Medium',
+        location: 'event-handlers.js:37',
+        category: 'Event Handling Vulnerabilities',
+        status: 'Detected',
+        stepsToReproduce: [
+          'Interact with the affected UI component',
+          'Enter malicious payload in input field',
+          'Trigger the event handler',
+          'Observe unsafe processing of input'
+        ],
+        impact: [
+          'Client-side data manipulation',
+          'Potential script injection',
+          'Unexpected application behavior'
+        ],
+        vulnerableCode: 'element.addEventListener("click", function() {\n  const userValue = document.getElementById("input").value;\n  processData(userValue); // No validation\n});',
+        fixDescription: 'Implement input validation before processing user data.',
+        fixedCode: 'element.addEventListener("click", function() {\n  const userValue = document.getElementById("input").value;\n  if (validateInput(userValue)) {\n    processData(userValue);\n  } else {\n    showError("Invalid input");\n  }\n});',
+        references: [
+          {
+            title: 'OWASP Input Validation Cheat Sheet',
+            url: 'https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html'
+          }
+        ],
+        timestamp: timestamp
+      },
+      
+      // 7. Request Forgery Vulnerabilities
+      {
+        id: 'sample-vuln-7',
+        name: 'CSRF Vulnerability in Form Submission',
+        description: 'Form lacks CSRF token, making it vulnerable to cross-site request forgery attacks.',
+        severity: 'Medium',
+        location: 'profile-update.html:42',
+        category: 'Request Forgery Vulnerabilities',
+        status: 'Detected',
+        stepsToReproduce: [
+          'Inspect the form markup',
+          'Note the absence of CSRF token',
+          'Create a test page that submits to the target endpoint',
+          'Verify form processes without validation'
+        ],
+        impact: [
+          'Unauthorized actions performed on behalf of authenticated users',
+          'Account compromise',
+          'Data modification without user consent'
+        ],
+        vulnerableCode: '<form action="/update-profile" method="POST">\n  <!-- Form fields without CSRF token -->\n  <button type="submit">Update</button>\n</form>',
+        fixDescription: 'Add CSRF token to all forms and validate on the server.',
+        fixedCode: '<form action="/update-profile" method="POST">\n  <input type="hidden" name="csrf_token" value="${csrfToken}">\n  <!-- Other form fields -->\n  <button type="submit">Update</button>\n</form>',
+        references: [
+          {
+            title: 'OWASP CSRF Prevention Cheat Sheet',
+            url: 'https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html'
+          }
+        ],
+        timestamp: timestamp
+      },
+      
+      // 8. JavaScript-Specific Vulnerabilities
+      {
+        id: 'sample-vuln-8',
+        name: 'Unsafe eval() Usage',
+        description: 'JavaScript code uses eval() with user-controlled input, allowing code injection.',
+        severity: 'High',
+        location: 'main.js:125',
+        category: 'JavaScript-Specific Vulnerabilities',
+        status: 'Detected',
+        stepsToReproduce: [
+          'Identify code using eval()',
+          'Input malicious JavaScript code as user input',
+          'Verify code execution'
+        ],
+        impact: [
+          'Arbitrary code execution',
+          'Data theft',
+          'Complete compromise of client-side security'
+        ],
+        vulnerableCode: 'function processUserInput(input) {\n  return eval(input); // Unsafe usage of eval\n}',
+        fixDescription: 'Avoid using eval() and use safer alternatives.',
+        fixedCode: 'function processUserInput(input) {\n  // Use safer methods to process user input\n  return JSON.parse(input); // If expecting JSON\n  // Or other appropriate parsing/handling based on expected input type\n}',
+        references: [
+          {
+            title: 'OWASP JavaScript Security Guide',
+            url: 'https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html'
           }
         ],
         timestamp: timestamp
@@ -378,6 +557,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Update bar chart
     const barChart = echarts.init(document.getElementById('bar-chart'));
+    
+    // Sort categories by total vulnerabilities for better visualization
+    const sortedCategories = Object.entries(categories).sort((a, b) => {
+      const totalA = a[1].high + a[1].medium + a[1].low;
+      const totalB = b[1].high + b[1].medium + b[1].low;
+      return totalB - totalA;
+    });
+    
+    const categoryNames = sortedCategories.map(entry => entry[0]);
+    const highData = sortedCategories.map(entry => entry[1].high);
+    const mediumData = sortedCategories.map(entry => entry[1].medium);
+    const lowData = sortedCategories.map(entry => entry[1].low);
+    
     const barOption = {
       animation: false,
       tooltip: {
@@ -390,25 +582,51 @@ document.addEventListener('DOMContentLoaded', function() {
         borderWidth: 1,
         textStyle: {
           color: '#1f2937'
+        },
+        formatter: function(params) {
+          let tooltip = params[0].name + '<br/>';
+          let total = 0;
+          
+          params.forEach(param => {
+            tooltip += `<span style="display:inline-block; margin-right:5px; border-radius:10px; width:10px; height:10px; background-color:${param.color};"></span>`;
+            tooltip += `${param.seriesName}: ${param.value}<br/>`;
+            total += param.value;
+          });
+          
+          tooltip += `<strong>Total: ${total}</strong>`;
+          return tooltip;
         }
+      },
+      legend: {
+        data: ['High', 'Medium', 'Low'],
+        bottom: 0
       },
       grid: {
         left: '3%',
         right: '4%',
-        bottom: '3%',
+        bottom: '10%',
         top: '3%',
         containLabel: true
       },
       xAxis: {
         type: 'category',
-        data: Object.keys(categories),
+        data: categoryNames,
         axisLine: {
           lineStyle: {
             color: '#e5e7eb'
           }
         },
         axisLabel: {
-          color: '#1f2937'
+          color: '#1f2937',
+          rotate: 30,
+          interval: 0,
+          formatter: function(value) {
+            // Shorten category names if too long
+            if (value.length > 20) {
+              return value.substring(0, 17) + '...';
+            }
+            return value;
+          }
         }
       },
       yAxis: {
@@ -432,30 +650,45 @@ document.addEventListener('DOMContentLoaded', function() {
           name: 'High',
           type: 'bar',
           stack: 'total',
-          data: Object.values(categories).map(cat => cat.high),
+          data: highData,
           itemStyle: {
-            color: 'rgba(252, 141, 98, 1)',
+            color: 'rgba(239, 68, 68, 0.85)',
             borderRadius: [4, 4, 0, 0]
+          },
+          emphasis: {
+            itemStyle: {
+              color: 'rgba(239, 68, 68, 1)'
+            }
           }
         },
         {
           name: 'Medium',
           type: 'bar',
           stack: 'total',
-          data: Object.values(categories).map(cat => cat.medium),
+          data: mediumData,
           itemStyle: {
-            color: 'rgba(251, 191, 114, 1)',
+            color: 'rgba(249, 115, 22, 0.85)',
             borderRadius: [0, 0, 0, 0]
+          },
+          emphasis: {
+            itemStyle: {
+              color: 'rgba(249, 115, 22, 1)'
+            }
           }
         },
         {
           name: 'Low',
           type: 'bar',
           stack: 'total',
-          data: Object.values(categories).map(cat => cat.low),
+          data: lowData,
           itemStyle: {
-            color: 'rgba(141, 211, 199, 1)',
+            color: 'rgba(234, 179, 8, 0.85)',
             borderRadius: [0, 0, 4, 4]
+          },
+          emphasis: {
+            itemStyle: {
+              color: 'rgba(234, 179, 8, 1)'
+            }
           }
         }
       ]
@@ -473,6 +706,9 @@ document.addEventListener('DOMContentLoaded', function() {
         borderWidth: 1,
         textStyle: {
           color: '#1f2937'
+        },
+        formatter: function(params) {
+          return `${params.name}: ${params.value} (${params.percent.toFixed(1)}%)`;
         }
       },
       legend: {
@@ -508,9 +744,9 @@ document.addEventListener('DOMContentLoaded', function() {
             show: false
           },
           data: [
-            { value: severities.high, name: 'High', itemStyle: { color: 'rgba(252, 141, 98, 1)' } },
-            { value: severities.medium, name: 'Medium', itemStyle: { color: 'rgba(251, 191, 114, 1)' } },
-            { value: severities.low, name: 'Low', itemStyle: { color: 'rgba(141, 211, 199, 1)' } }
+            { value: severities.high, name: 'High', itemStyle: { color: 'rgba(239, 68, 68, 0.85)' } },
+            { value: severities.medium, name: 'Medium', itemStyle: { color: 'rgba(249, 115, 22, 0.85)' } },
+            { value: severities.low, name: 'Low', itemStyle: { color: 'rgba(234, 179, 8, 0.85)' } }
           ]
         }
       ]
@@ -535,13 +771,46 @@ document.addEventListener('DOMContentLoaded', function() {
     // Group vulnerabilities by category
     const categories = {};
     vulnerabilities.forEach(vuln => {
-      // Assign a default category if missing
-      const category = vuln.category || 'Other Vulnerabilities';
+      // Assign a default category from our standardized list
+      let category = vuln.category || 'Other Vulnerabilities';
+      
+      // Make sure it's one of our standard categories
+      const standardCategories = [
+        'Cross-Site Scripting (XSS)',
+        'Client-Side Security Misconfigurations',
+        'Client-Side Data Exposure',
+        'JavaScript-Specific Vulnerabilities',
+        'Dependency Vulnerabilities',
+        'Event Handling Vulnerabilities',
+        'Network-Related Vulnerabilities',
+        'Request Forgery Vulnerabilities'
+      ];
+      
+      if (!standardCategories.includes(category)) {
+        // Map to closest matching category or default to JavaScript-Specific
+        if (category.includes('XSS') || category.includes('Script')) {
+          category = 'Cross-Site Scripting (XSS)';
+        } else if (category.includes('Configuration') || category.includes('Config')) {
+          category = 'Client-Side Security Misconfigurations';
+        } else if (category.includes('Data') || category.includes('Exposure')) {
+          category = 'Client-Side Data Exposure';
+        } else if (category.includes('Network') || category.includes('Content')) {
+          category = 'Network-Related Vulnerabilities';
+        } else if (category.includes('Dependency') || category.includes('Library')) {
+          category = 'Dependency Vulnerabilities';
+        } else if (category.includes('Event') || category.includes('Handler')) {
+          category = 'Event Handling Vulnerabilities';
+        } else if (category.includes('CSRF') || category.includes('Forgery')) {
+          category = 'Request Forgery Vulnerabilities';
+        } else {
+          category = 'JavaScript-Specific Vulnerabilities';
+        }
+      }
       
       if (!categories[category]) {
         categories[category] = [];
       }
-      categories[category].push(vuln);
+      categories[category].push({...vuln, category: category});
     });
     
     console.log('Grouped vulnerabilities by category:', categories);
@@ -637,7 +906,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let vuln;
         
         if (vulnId && vulnId !== 'unknown') {
-          vuln = vulnerabilities.find(v => v.id === vulnId);
+          vuln = allVulnerabilities.find(v => v.id === vulnId);
         }
         
         // If not found or ID was missing, try to find by matching other properties
@@ -646,7 +915,7 @@ document.addEventListener('DOMContentLoaded', function() {
           const vulnName = row.querySelector('td:first-child').textContent;
           const vulnLocation = row.querySelector('td:nth-child(3)').textContent;
           
-          vuln = vulnerabilities.find(v => 
+          vuln = allVulnerabilities.find(v => 
             v.name === vulnName && (v.location || 'N/A') === vulnLocation
           );
         }
@@ -663,15 +932,14 @@ document.addEventListener('DOMContentLoaded', function() {
   // Function to get category icon
   function getCategoryIcon(category) {
     const icons = {
-      'XSS': 'code-line',
+      'Cross-Site Scripting (XSS)': 'code-line',
       'Client-Side Security Misconfigurations': 'settings-line',
       'Client-Side Data Exposure': 'database-2-line',
       'JavaScript-Specific Vulnerabilities': 'code-s-slash-line',
       'Dependency Vulnerabilities': 'git-branch-line',
       'Event Handling Vulnerabilities': 'cursor-line',
       'Network-Related Vulnerabilities': 'global-line',
-      'Request Forgery Vulnerabilities': 'spam-2-line',
-      'Other Vulnerabilities': 'error-warning-line'
+      'Request Forgery Vulnerabilities': 'spam-2-line'
     };
     return icons[category] || 'error-warning-line';
   }
