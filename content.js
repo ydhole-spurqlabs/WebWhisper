@@ -184,7 +184,7 @@ function savePartialResults() {
   });
 }
 
-// Main scan function - update to include new vulnerability types
+// Main scan function - update to include additional vulnerability types
 function scanForVulnerabilities(isBackground = false) {
   const vulnerabilities = [];
   
@@ -232,6 +232,30 @@ function scanForVulnerabilities(isBackground = false) {
   
   // Check for API security issues
   checkAPISecurityIssues(vulnerabilities);
+  
+  // Check for unvalidated API endpoints
+  checkUnvalidatedAPIEndpoints(vulnerabilities);
+  
+  // Check for improper authentication checks
+  checkImproperAuthenticationChecks(vulnerabilities);
+  
+  // Check for insecure direct object references
+  checkInsecureDirectObjectReferences(vulnerabilities);
+  
+  // Check for rate limiting bypass attempts
+  checkRateLimitingBypass(vulnerabilities);
+  
+  // Check for Cross-Site Request Forgery vulnerabilities
+  checkCSRFVulnerabilities(vulnerabilities);
+  
+  // Check for weak CSRF token implementation
+  checkWeakCSRFTokens(vulnerabilities);
+  
+  // Check for improper request validation
+  checkImproperRequestValidation(vulnerabilities);
+  
+  // Deep scan of JavaScript source code for security patterns
+  scanJavaScriptSourceCode(vulnerabilities);
   
   // Only perform these more intensive checks if not in background mode
   // or randomly in background mode to avoid impacting browsing experience
@@ -2313,6 +2337,1119 @@ function checkAPISecurityIssues(vulnerabilities) {
       description: 'Code appears to process API responses using unsafe methods (eval, Function constructor, or document.write), which could lead to code injection if the API is compromised.',
       severity: 'High',
       location: 'JavaScript Code'
+    });
+  }
+}
+
+// Check for unvalidated API endpoints
+function checkUnvalidatedAPIEndpoints(vulnerabilities) {
+  // Get all scripts on the page
+  const scripts = document.querySelectorAll('script:not([src])');
+  let scriptContent = '';
+  
+  for (const script of scripts) {
+    scriptContent += script.textContent + '\n';
+  }
+  
+  // Look for API calls patterns
+  const apiCallPatterns = [
+    { pattern: /fetch\s*\(['"](\/api\/|http)/i, name: 'Fetch API' },
+    { pattern: /\$\.(?:get|post|ajax|put|delete)\s*\(['"](\/api\/|http)/i, name: 'jQuery AJAX' },
+    { pattern: /axios\.(?:get|post|put|delete|request)\s*\(['"](\/api\/|http)/i, name: 'Axios' },
+    { pattern: /new\s+XMLHttpRequest\(\).*\.open\s*\(['"](?:GET|POST|PUT|DELETE)['"],\s*['"](\/api\/|http)/i, name: 'XMLHttpRequest' }
+  ];
+  
+  // Check for input validation in API calls
+  for (const pattern of apiCallPatterns) {
+    if (pattern.pattern.test(scriptContent)) {
+      // Look for validation before making API calls
+      const hasPreCallValidation = 
+        scriptContent.match(/validate.*before.*\.(fetch|ajax|get|post|send)/i) ||
+        scriptContent.match(/sanitize.*before.*\.(fetch|ajax|get|post|send)/i) ||
+        scriptContent.match(/verify.*before.*\.(fetch|ajax|get|post|send)/i);
+      
+      // Look for request payload validation
+      const hasPayloadValidation =
+        scriptContent.match(/validate\s*\(\s*(?:data|payload|body|params)/i) ||
+        scriptContent.match(/sanitize\s*\(\s*(?:data|payload|body|params)/i) ||
+        scriptContent.match(/check\s*\(\s*(?:data|payload|body|params)/i);
+      
+      if (!hasPreCallValidation && !hasPayloadValidation && 
+          scriptContent.match(/\.value|document\.getElementById|querySelector.*\.value|formData|new FormData/i)) {
+        
+        vulnerabilities.push({
+          name: 'Potential Unvalidated API Endpoint Call',
+          description: `Code appears to make ${pattern.name} calls with data from form inputs without validation, which could lead to injection attacks or API misuse.`,
+          severity: 'Medium',
+          location: 'JavaScript Code - API Calls'
+        });
+        break; // Only report once for this type of API call
+      }
+    }
+  }
+  
+  // Check for client-side path parameters manipulation
+  if ((scriptContent.match(/fetch\s*\([^)]*\$\{/i) || 
+      scriptContent.match(/\.\s*(?:get|post|ajax|put|delete)\s*\([^)]*\$\{/i) ||
+      scriptContent.match(/\.open\s*\([^)]*\$\{/i)) &&
+      scriptContent.match(/location|window\.location|param|parameter|id|userId|projectId/i)) {
+    
+    // Look for validation of path parameters
+    const hasPathParamValidation =
+      scriptContent.match(/validate.*id/i) ||
+      scriptContent.match(/sanitize.*param/i) ||
+      scriptContent.match(/parseInt\s*\(|Number\s*\(/i) ||
+      scriptContent.match(/toString\s*\(\s*\)/i);
+    
+    if (!hasPathParamValidation) {
+      vulnerabilities.push({
+        name: 'Unvalidated Path Parameter in API Call',
+        description: 'Code appears to include potentially user-controlled path parameters in API calls without validation, which could lead to path traversal or injection attacks.',
+        severity: 'High',
+        location: 'JavaScript Code - API Path Parameters'
+      });
+    }
+  }
+  
+  // Check for GraphQL query validation
+  if (scriptContent.includes('graphql') || scriptContent.includes('gql')) {
+    const hasGraphQLValidation = 
+      scriptContent.match(/validate.*(?:query|mutation)/i) || 
+      scriptContent.match(/sanitize.*(?:variables|params)/i);
+      
+    if (!hasGraphQLValidation && 
+        (scriptContent.match(/variables\s*:/) || scriptContent.match(/\$\{.*\}/))) {
+      vulnerabilities.push({
+        name: 'Unvalidated GraphQL Query Variables',
+        description: 'GraphQL queries appear to use variables without proper validation, which could lead to injection attacks.',
+        severity: 'Medium',
+        location: 'JavaScript Code - GraphQL'
+      });
+    }
+  }
+}
+
+// Check for improper authentication checks
+function checkImproperAuthenticationChecks(vulnerabilities) {
+  // Get all scripts on the page
+  const scripts = document.querySelectorAll('script:not([src])');
+  let scriptContent = '';
+  
+  for (const script of scripts) {
+    scriptContent += script.textContent + '\n';
+  }
+  
+  // Check for client-side authentication logic
+  if (scriptContent.match(/function\s+(?:is|check|verify)(?:User|Admin|Authenticated|LoggedIn)/i) ||
+      scriptContent.match(/(?:is|check|verify)(?:User|Admin|Authenticated|LoggedIn)\s*=\s*function/i)) {
+    
+    vulnerabilities.push({
+      name: 'Client-Side Authentication Logic',
+      description: 'Authentication checks appear to be implemented in client-side JavaScript, which can be easily bypassed. Authentication should be handled server-side.',
+      severity: 'Critical',
+      location: 'JavaScript Code - Authentication Logic'
+    });
+  }
+  
+  // Check for authentication state stored only in localStorage or sessionStorage
+  if ((scriptContent.match(/localStorage\.(?:set|get)Item\s*\(\s*['"](?:token|auth|authenticated|user|logged|admin)['"]/i) ||
+       scriptContent.match(/sessionStorage\.(?:set|get)Item\s*\(\s*['"](?:token|auth|authenticated|user|logged|admin)['"]/i)) &&
+      scriptContent.match(/if\s*\(\s*(?:localStorage|sessionStorage)\.(?:getItem|get)\s*\(/i)) {
+    
+    vulnerabilities.push({
+      name: 'Client-Side Authentication State Storage',
+      description: 'Authentication state appears to be stored and checked only on the client side. This can be easily manipulated by users to bypass authentication.',
+      severity: 'High',
+      location: 'JavaScript Code - Authentication State'
+    });
+  }
+  
+  // Check for hardcoded credentials
+  if (scriptContent.match(/password\s*(?:===|==|=)\s*['"].*['"]/i) ||
+      scriptContent.match(/username\s*(?:===|==|=)\s*['"].*['"]/i) ||
+      scriptContent.match(/user\s*(?:===|==|=)\s*['"]admin['"]/i) ||
+      scriptContent.match(/role\s*(?:===|==|=)\s*['"]admin['"]/i)) {
+    
+    vulnerabilities.push({
+      name: 'Hardcoded Credentials or Role Checks',
+      description: 'Hardcoded credentials or role checks were found in client-side code, which can be easily discovered and exploited.',
+      severity: 'Critical',
+      location: 'JavaScript Code - Hardcoded Auth Checks'
+    });
+  }
+  
+  // Check for improper handling of authentication failures
+  if (scriptContent.match(/catch\s*\(\s*[^)]+\)\s*\{[^}]*console\.log/i) &&
+      scriptContent.match(/login|authenticate|signin|token/i)) {
+    
+    vulnerabilities.push({
+      name: 'Improper Authentication Error Handling',
+      description: 'Authentication errors appear to be logged to the console, which may reveal sensitive information about the authentication process.',
+      severity: 'Medium',
+      location: 'JavaScript Code - Auth Error Handling'
+    });
+  }
+  
+  // Check for unsubmitted credentials in forms
+  const forms = document.querySelectorAll('form');
+  for (const form of forms) {
+    if (form.querySelector('input[type="password"]')) {
+      const loginButton = form.querySelector('button[type="button"], input[type="button"]');
+      if (loginButton) {
+        // Check if form has a submit button or uses an onclick handler
+        if (!form.querySelector('button[type="submit"], input[type="submit"]') && 
+            loginButton.hasAttribute('onclick')) {
+          vulnerabilities.push({
+            name: 'Form Submission Bypass',
+            description: 'Login form appears to use a button with onClick handler instead of proper form submission, which may bypass built-in browser security.',
+            severity: 'Medium',
+            location: `Form ${form.id ? 'id="' + form.id + '"' : (form.getAttribute('action') ? 'action="' + form.getAttribute('action') + '"' : '')}`
+          });
+        }
+      }
+    }
+  }
+}
+
+// Check for insecure direct object references (IDOR)
+function checkInsecureDirectObjectReferences(vulnerabilities) {
+  // Get all scripts on the page
+  const scripts = document.querySelectorAll('script:not([src])');
+  let scriptContent = '';
+  
+  for (const script of scripts) {
+    scriptContent += script.textContent + '\n';
+  }
+  
+  // Check for URL patterns that suggest direct object access
+  if (window.location.href.match(/[?&](?:id|user_id|document_id|file_id|order_id)=\d+/i)) {
+    // Look for authorization checks related to these IDs
+    const hasAuthorizationCheck = 
+      scriptContent.match(/checkAccess|checkPermission|canAccess|hasPermission|authorize|isAuthorized/i) &&
+      (scriptContent.match(/\.then\s*\(\s*function/i) || scriptContent.match(/await/i));
+    
+    if (!hasAuthorizationCheck) {
+      vulnerabilities.push({
+        name: 'Potential Insecure Direct Object Reference (IDOR)',
+        description: 'Page URL contains an ID parameter but no authorization checks were detected. This could allow users to access unauthorized resources by changing the ID value.',
+        severity: 'High',
+        location: 'URL Parameter - ' + window.location.href
+      });
+    }
+  }
+  
+  // Check for client-side data access patterns that suggest IDOR vulnerability
+  if ((scriptContent.match(/fetch\s*\([^)]*(?:\/users\/|\/user\/|\/accounts\/|\/account\/|\/profiles\/|\/profile\/)/i) ||
+       scriptContent.match(/get\s*\([^)]*(?:\/users\/|\/user\/|\/accounts\/|\/account\/|\/profiles\/|\/profile\/)/i)) &&
+      scriptContent.match(/\$\{.*id.*\}/i)) {
+    
+    // Look for access control checks
+    const hasAccessControl = 
+      scriptContent.match(/check.*(?:permission|access|role)/i) ||
+      scriptContent.match(/is.*(?:owner|authorized|allowed)/i);
+    
+    if (!hasAccessControl) {
+      vulnerabilities.push({
+        name: 'Potential IDOR in API Calls',
+        description: 'Code fetches user/account data using an ID that appears to be manipulable without proper authorization checks.',
+        severity: 'High',
+        location: 'JavaScript Code - API Access Pattern'
+      });
+    }
+  }
+  
+  // Check for client-side data filtering
+  if (scriptContent.match(/filter\s*\(\s*([^)]*)\s*=>\s*.*\.id\s*===\s*(?:userId|currentUser)/i) || 
+      scriptContent.match(/if\s*\(\s*data\.(?:user|owner|creator)(?:Id|_id)\s*===\s*(?:userId|currentUser)/i)) {
+    
+    vulnerabilities.push({
+      name: 'Client-Side Access Control',
+      description: 'Data access control appears to be implemented on the client side by filtering data after retrieval. This can be bypassed since users can access the unfiltered API responses.',
+      severity: 'High',
+      location: 'JavaScript Code - Client-Side Filtering'
+    });
+  }
+  
+  // Check for predictable resource URLs 
+  const resourceLinks = document.querySelectorAll('a[href*="/download/"], a[href*="/file/"], a[href*="/document/"], a[href*="/report/"]');
+  for (const link of resourceLinks) {
+    const href = link.getAttribute('href');
+    if (href && href.match(/\d+/)) {
+      vulnerabilities.push({
+        name: 'Predictable Resource URL',
+        description: 'Resource URL contains a numeric ID that might be susceptible to IDOR if server-side authorization checks are not in place.',
+        severity: 'Medium',
+        location: `Resource link: ${href}`
+      });
+      break; // Only report once for this type of issue
+    }
+  }
+}
+
+// Check for rate limiting bypass attempts
+function checkRateLimitingBypass(vulnerabilities) {
+  // Get all scripts on the page
+  const scripts = document.querySelectorAll('script:not([src])');
+  let scriptContent = '';
+  
+  for (const script of scripts) {
+    scriptContent += script.textContent + '\n';
+  }
+  
+  // We already check for this in API Security Issues, but we'll add more specific checks here
+  
+  // Check for concurrent requests without delay
+  if (scriptContent.match(/Promise\.all\s*\(\s*\[/i) && 
+      (scriptContent.match(/fetch\s*\(/gi) || scriptContent.match(/\.post\s*\(/gi) || scriptContent.match(/\.get\s*\(/gi)) &&
+      scriptContent.match(/for\s*\(/i)) {
+    
+    vulnerabilities.push({
+      name: 'Concurrent API Request Pattern',
+      description: 'Code appears to make multiple concurrent API requests, which could be used to bypass rate limiting if not properly implemented on the server.',
+      severity: 'Medium',
+      location: 'JavaScript Code - Concurrent Requests'
+    });
+  }
+  
+  // Check for request retry logic that might bypass rate limiting
+  if (scriptContent.match(/retry|retries/i) && 
+      scriptContent.match(/catch\s*\(\s*[^)]+\)\s*\{[^}]*(?:fetch|ajax|get|post)/i)) {
+    
+    // Check if there's proper backoff mechanism
+    const hasBackoff = 
+      scriptContent.match(/setTimeout\s*\([^,]+,\s*[^)]*\*\s*(?:retryCount|attempts|tries|i)/i) ||
+      scriptContent.match(/(?:exponential|backoff)/i);
+    
+    if (!hasBackoff) {
+      vulnerabilities.push({
+        name: 'Improper Retry Logic',
+        description: 'Request retry logic without proper exponential backoff could be used to bypass rate limiting.',
+        severity: 'Medium',
+        location: 'JavaScript Code - Retry Logic'
+      });
+    }
+  }
+  
+  // Check for rotating identifiers (potential sign of trying to bypass rate limits)
+  if ((scriptContent.match(/random\(\)|Math\.random\(\)/i) || 
+       scriptContent.match(/\(new Date\(\)\)\.getTime\(\)/i) || 
+       scriptContent.match(/Date\.now\(\)/i)) && 
+      (scriptContent.match(/headers\s*:/i) || scriptContent.match(/setRequestHeader/i))) {
+    
+    vulnerabilities.push({
+      name: 'Potential Identifier Rotation',
+      description: 'Code appears to generate random or time-based values for request headers, which might be an attempt to bypass rate limiting or tracking.',
+      severity: 'Medium',
+      location: 'JavaScript Code - Header Manipulation'
+    });
+  }
+  
+  // Check for distributed requests across multiple tabs/windows
+  if (scriptContent.match(/localStorage\s*\.\s*setItem\s*\(\s*["'](?:requests|api_calls|counter)["']/i) &&
+      scriptContent.match(/\+\+|increment|\+=|>/i)) {
+    
+    vulnerabilities.push({
+      name: 'Cross-Tab Request Coordination',
+      description: 'Code appears to track API request counts across browser tabs, which might be used to distribute requests to stay under rate limits.',
+      severity: 'Low',
+      location: 'JavaScript Code - Request Tracking'
+    });
+  }
+  
+  // Check for timing manipulation that could bypass rate limiting
+  if (scriptContent.match(/setTimeout\s*\(\s*function\s*\(\s*\)\s*\{[^}]*(?:fetch|ajax|get|post|request)/i) &&
+      scriptContent.match(/\+\s*Math\.random\(\)\s*\*/i)) {
+    
+    vulnerabilities.push({
+      name: 'Request Timing Manipulation',
+      description: 'Code uses randomized delays between API requests, which could be an attempt to evade detection of automated requests or bypass rate limiting.',
+      severity: 'Low',
+      location: 'JavaScript Code - Request Timing'
+    });
+  }
+}
+
+// Check for Cross-Site Request Forgery (CSRF) vulnerabilities
+function checkCSRFVulnerabilities(vulnerabilities) {
+  // Get all forms on the page
+  const forms = document.querySelectorAll('form');
+  
+  // Check each form for CSRF vulnerabilities
+  for (const form of forms) {
+    const method = form.getAttribute('method') || 'get';
+    
+    // CSRF is primarily a concern for state-changing operations (POST, PUT, DELETE)
+    if (method.toLowerCase() === 'post' || method.toLowerCase() === 'put' || method.toLowerCase() === 'delete') {
+      // Look for CSRF tokens in the form
+      const inputs = form.querySelectorAll('input[type="hidden"]');
+      let hasCSRFToken = false;
+      
+      for (const input of inputs) {
+        const name = input.getAttribute('name') || '';
+        const value = input.getAttribute('value') || '';
+        
+        // Check for common CSRF token naming patterns
+        if (name.toLowerCase().includes('csrf') || 
+            name.toLowerCase().includes('token') || 
+            name.toLowerCase().includes('xsrf') || 
+            name.toLowerCase().includes('_token') ||
+            name.toLowerCase() === 'authenticity_token') {
+          
+          hasCSRFToken = true;
+          break;
+        }
+      }
+      
+      // Flag forms without CSRF tokens
+      if (!hasCSRFToken) {
+        vulnerabilities.push({
+          name: 'Missing CSRF Protection',
+          description: 'Form with state-changing operation (POST/PUT/DELETE) does not appear to include a CSRF token, which could make it vulnerable to Cross-Site Request Forgery attacks.',
+          severity: 'High',
+          location: `Form ${form.id ? 'id="' + form.id + '"' : (form.getAttribute('action') ? 'action="' + form.getAttribute('action') + '"' : '')}`
+        });
+      }
+    }
+  }
+  
+  // Check for CSRF protection in JavaScript-based submissions
+  const scripts = document.querySelectorAll('script:not([src])');
+  let scriptContent = '';
+  
+  for (const script of scripts) {
+    scriptContent += script.textContent + '\n';
+  }
+  
+  // Look for AJAX form submissions
+  if ((scriptContent.match(/\.ajax\s*\(\s*\{/i) || 
+       scriptContent.match(/\$\.post/i) || 
+       scriptContent.match(/fetch\s*\(/i) || 
+       scriptContent.match(/new\s+FormData/i)) &&
+       scriptContent.match(/method\s*:\s*['"]POST['"]|type\s*:\s*['"]POST['"]/i)) {
+    
+    // Look for CSRF token inclusion in these requests
+    const hasCSRFInRequests = 
+      scriptContent.match(/['"]\s*X-CSRF-TOKEN\s*['"]|['"]\s*csrf-token\s*['"]|['"]\s*_token\s*['"]|['"]\s*authenticity_token\s*['"]/i) ||
+      scriptContent.match(/headers\s*\[\s*['"]X-CSRF-TOKEN['"]\s*\]|headers\.append\s*\(\s*['"]X-CSRF-TOKEN['"]/i) ||
+      scriptContent.match(/formData\.append\s*\(\s*['"]_token['"]/i);
+    
+    if (!hasCSRFInRequests) {
+      vulnerabilities.push({
+        name: 'Missing CSRF Protection in AJAX Requests',
+        description: 'JavaScript-based form submissions do not appear to include CSRF tokens, which could make them vulnerable to Cross-Site Request Forgery attacks.',
+        severity: 'High',
+        location: 'JavaScript Code - AJAX Requests'
+      });
+    }
+  }
+  
+  // Check for Same-Site cookie attribute in HTTP-only environments
+  // (can't check HTTP headers directly in content script, but can check meta tags that might set cookies)
+  const metaCookies = document.querySelectorAll('meta[http-equiv="Set-Cookie"]');
+  for (const meta of metaCookies) {
+    const content = meta.getAttribute('content') || '';
+    if (content.includes('session') || content.includes('auth') || content.includes('token')) {
+      if (!content.includes('SameSite=Strict') && !content.includes('SameSite=Lax')) {
+        vulnerabilities.push({
+          name: 'Missing SameSite Cookie Attribute',
+          description: 'Cookies set via meta tags do not use the SameSite attribute, which helps prevent CSRF attacks.',
+          severity: 'Medium',
+          location: 'Meta Tag Set-Cookie'
+        });
+        break;
+      }
+    }
+  }
+}
+
+// Check for weak CSRF token implementation
+function checkWeakCSRFTokens(vulnerabilities) {
+  // Get all forms on the page
+  const forms = document.querySelectorAll('form');
+  
+  // Check each form for weak CSRF token patterns
+  for (const form of forms) {
+    const inputs = form.querySelectorAll('input[type="hidden"]');
+    
+    for (const input of inputs) {
+      const name = input.getAttribute('name') || '';
+      const value = input.getAttribute('value') || '';
+      
+      // Check if this is a CSRF token input
+      if (name.toLowerCase().includes('csrf') || 
+          name.toLowerCase().includes('token') || 
+          name.toLowerCase().includes('xsrf') || 
+          name === '_token' ||
+          name === 'authenticity_token') {
+        
+        // Check for potentially weak token patterns
+        if (value.length < 16) {
+          // Too short to be secure
+          vulnerabilities.push({
+            name: 'Weak CSRF Token - Insufficient Length',
+            description: 'CSRF token is too short to provide adequate security. Tokens should be at least 16 characters long with high entropy.',
+            severity: 'High',
+            location: `Form input: ${name}="${value}"`
+          });
+        } else if (/^[0-9]+$/.test(value)) {
+          // All numeric - likely a timestamp or sequential number
+          vulnerabilities.push({
+            name: 'Weak CSRF Token - All Numeric',
+            description: 'CSRF token appears to be all numeric, suggesting it might be a timestamp or sequential number, which is predictable.',
+            severity: 'High',
+            location: `Form input: ${name}="${value}"`
+          });
+        } else if (/^[a-zA-Z0-9]{32}$/.test(value) && value.toUpperCase() === value) {
+          // Possibly an MD5 hash
+          vulnerabilities.push({
+            name: 'Potential Weak CSRF Token - Hash Function',
+            description: 'CSRF token appears to be a 32-character hexadecimal string, suggesting it might be an MD5 hash, which is not cryptographically secure.',
+            severity: 'Medium',
+            location: `Form input: ${name}="${value}"`
+          });
+        }
+      }
+    }
+  }
+  
+  // Check for CSRF token extraction or generation in JavaScript
+  const scripts = document.querySelectorAll('script:not([src])');
+  let scriptContent = '';
+  
+  for (const script of scripts) {
+    scriptContent += script.textContent + '\n';
+  }
+  
+  // Check for weak token generation patterns
+  if (scriptContent.match(/['"]csrf['"]|['"]_token['"]|['"]csrf_token['"]/i)) {
+    // Check for use of timestamp as token
+    if (scriptContent.match(/new\s+Date\s*\(\s*\)\.getTime\s*\(\s*\)|Date\.now\s*\(\s*\)/i) &&
+        scriptContent.match(/token\s*=|csrf\s*=|_token\s*=/i)) {
+      
+      vulnerabilities.push({
+        name: 'Weak CSRF Token Generation - Timestamp',
+        description: 'CSRF token appears to be generated using a timestamp, which is predictable and insecure.',
+        severity: 'High',
+        location: 'JavaScript Code - Token Generation'
+      });
+    }
+    
+    // Check for use of Math.random() for token generation
+    if (scriptContent.match(/Math\.random\s*\(\s*\)/i) &&
+        scriptContent.match(/token\s*=|csrf\s*=|_token\s*=/i)) {
+      
+      vulnerabilities.push({
+        name: 'Weak CSRF Token Generation - Math.random()',
+        description: 'CSRF token appears to be generated using Math.random(), which is not cryptographically secure and can be predicted.',
+        severity: 'High',
+        location: 'JavaScript Code - Token Generation'
+      });
+    }
+    
+    // Check for reuse of tokens from DOM
+    if (scriptContent.match(/document\.getElementsByName\s*\(\s*['"]csrf_token['"]|document\.querySelector\s*\(\s*['"]input\[name=["']csrf_token["']\]['"]/i) &&
+        scriptContent.match(/localStorage|sessionStorage|cookie/i)) {
+      
+      vulnerabilities.push({
+        name: 'Potential CSRF Token Reuse',
+        description: 'Code appears to store CSRF tokens in client storage, which could lead to token reuse across requests and sessions.',
+        severity: 'Medium',
+        location: 'JavaScript Code - Token Storage'
+      });
+    }
+  }
+}
+
+// Check for improper request validation
+function checkImproperRequestValidation(vulnerabilities) {
+  // Get all scripts on the page
+  const scripts = document.querySelectorAll('script:not([src])');
+  let scriptContent = '';
+  
+  for (const script of scripts) {
+    scriptContent += script.textContent + '\n';
+  }
+  
+  // Check for form submissions without validation
+  if ((scriptContent.match(/\.submit\s*\(\s*\)/i) || 
+       scriptContent.match(/document\.forms/i)) &&
+      !scriptContent.match(/validate|validation|validator|isValid|checkValid/i)) {
+    
+    vulnerabilities.push({
+      name: 'Form Submission Without Validation',
+      description: 'JavaScript code appears to submit forms without validating input, which could lead to injection attacks or data integrity issues.',
+      severity: 'Medium',
+      location: 'JavaScript Code - Form Submission'
+    });
+  }
+  
+  // Check for lack of Content-Type validation in AJAX requests
+  if (scriptContent.match(/\.ajax\s*\(|\.post\s*\(|\.get\s*\(|fetch\s*\(/i) &&
+      scriptContent.match(/JSON\.parse|response\.json\s*\(\s*\)/i) &&
+      !scriptContent.match(/Content-Type|content-type|contentType/i)) {
+    
+    vulnerabilities.push({
+      name: 'Missing Content-Type Validation',
+      description: 'Code parses JSON responses but does not appear to validate the Content-Type header, which could lead to JSON hijacking attacks.',
+      severity: 'Medium',
+      location: 'JavaScript Code - AJAX Requests'
+    });
+  }
+  
+  // Check for weak Origin/Referer validation
+  if (scriptContent.match(/document\.referrer|headers\s*\[\s*['"]Referer['"]|headers\s*\[\s*['"]Origin['"]/i) &&
+      !scriptContent.match(/===\s*['"]https:\/\/|\.indexOf\s*\(\s*['"]https:\/\/[^'"]+['"]\s*\)\s*===\s*0/i)) {
+    
+    vulnerabilities.push({
+      name: 'Weak Referer/Origin Validation',
+      description: 'Code appears to check Referer or Origin headers but may not properly validate the full URL, which could allow request forgery from similar domains.',
+      severity: 'Medium',
+      location: 'JavaScript Code - Request Validation'
+    });
+  }
+  
+  // Check for weak redirect validation
+  if ((scriptContent.match(/location\s*=|location\.href\s*=|window\.location\s*=|location\.replace/i) &&
+       scriptContent.match(/\.value|getElementById|querySelector/i) &&
+       !scriptContent.match(/validate|sanitize|check/i)) ||
+      (scriptContent.match(/\.open\s*\(\s*['"]GET['"],/i) && 
+       scriptContent.match(/\+\s*.*?\.value/i))) {
+    
+    vulnerabilities.push({
+      name: 'Unvalidated Redirect',
+      description: 'Code performs redirects using unvalidated input values, which could lead to open redirect vulnerabilities.',
+      severity: 'Medium',
+      location: 'JavaScript Code - Redirects'
+    });
+  }
+  
+  // Check for insufficient URL validation
+  if (scriptContent.match(/new\s+URL\s*\(|URL\.createObjectURL/i) &&
+      scriptContent.match(/\.value|getElementById|querySelector/i) &&
+      !scriptContent.match(/validate|sanitize|check/i)) {
+    
+    vulnerabilities.push({
+      name: 'Insufficient URL Validation',
+      description: 'Code creates URLs from user input without proper validation, which could lead to security vulnerabilities.',
+      severity: 'Medium',
+      location: 'JavaScript Code - URL Handling'
+    });
+  }
+  
+  // Check forms with file uploads for proper validation
+  const formWithFileUploads = document.querySelectorAll('form[enctype="multipart/form-data"]');
+  for (const form of formWithFileUploads) {
+    const fileInputs = form.querySelectorAll('input[type="file"]');
+    if (fileInputs.length > 0) {
+      // Check for file validation in associated JavaScript
+      let hasFileValidation = false;
+      
+      // Try to find script related to this form by ID
+      const formId = form.getAttribute('id');
+      if (formId && scriptContent.includes(formId)) {
+        hasFileValidation = scriptContent.match(new RegExp(`${formId}.*?(file|size|type).*?(validate|check|verify)`, 'i')) !== null;
+      }
+      
+      // Check for general file validation patterns if form id-specific check didn't find anything
+      if (!hasFileValidation) {
+        for (const input of fileInputs) {
+          const inputId = input.getAttribute('id');
+          const inputName = input.getAttribute('name');
+          
+          if ((inputId && scriptContent.includes(inputId)) || (inputName && scriptContent.includes(inputName))) {
+            hasFileValidation = 
+              scriptContent.match(/\.type|\.size|\.extension|\.name/i) && 
+              scriptContent.match(/if\s*\(|validate|check|verify/i);
+            
+            if (hasFileValidation) break;
+          }
+        }
+      }
+      
+      if (!hasFileValidation) {
+        vulnerabilities.push({
+          name: 'Improper File Upload Validation',
+          description: 'Form includes file uploads but no client-side validation of file type, size, or content was detected.',
+          severity: 'Medium',
+          location: `Form ${formId ? 'id="' + formId + '"' : 'with file upload'}`
+        });
+      }
+    }
+  }
+}
+
+// Scan JavaScript source code for security patterns
+function scanJavaScriptSourceCode(vulnerabilities) {
+  // Collect all JavaScript code from inline scripts and external scripts where possible
+  const scripts = document.querySelectorAll('script');
+  let inlineScriptContent = '';
+  const externalScriptUrls = [];
+  
+  // Collect inline scripts and URLs of external scripts
+  for (const script of scripts) {
+    if (!script.src) {
+      inlineScriptContent += script.textContent + '\n';
+    } else if (script.src) {
+      externalScriptUrls.push(script.src);
+    }
+  }
+  
+  // Analyze inline script content
+  analyzeJavaScriptCode(inlineScriptContent, 'Inline Scripts', vulnerabilities);
+  
+  // Report external scripts (we can't analyze their content directly,
+  // but we can note their existence and potentially check if they're from untrusted sources)
+  for (const url of externalScriptUrls) {
+    if (!url.startsWith('https:')) {
+      vulnerabilities.push({
+        name: 'Insecure External Script',
+        description: 'External JavaScript loaded over insecure HTTP connection.',
+        severity: 'High',
+        location: `Script src: ${url}`
+      });
+    }
+    
+    // Check for scripts from CDNs without integrity checks
+    if (url.includes('cdn.') || url.includes('.jsdelivr.net') || url.includes('.unpkg.com')) {
+      const scriptElement = document.querySelector(`script[src="${url}"]`);
+      if (!scriptElement.hasAttribute('integrity') || !scriptElement.hasAttribute('crossorigin')) {
+        vulnerabilities.push({
+          name: 'Missing Subresource Integrity',
+          description: 'External script from CDN lacks integrity and/or crossorigin attributes, which verify the script hasn\'t been tampered with.',
+          severity: 'Medium',
+          location: `Script src: ${url}`
+        });
+      }
+    }
+  }
+}
+
+// Analyze JavaScript code for security patterns
+function analyzeJavaScriptCode(code, location, vulnerabilities) {
+  // Skip if there's no code to analyze
+  if (!code || code.trim() === '') return;
+  
+  // Security pattern checks that aren't covered by other specific checks
+  
+  // Check for use of dangerous JavaScript features
+  checkDangerousJSFeatures(code, location, vulnerabilities);
+  
+  // Check for insecure crypto usage
+  checkInsecureCrypto(code, location, vulnerabilities);
+  
+  // Check for debugger statements and console logs in production
+  checkDebuggerStatements(code, location, vulnerabilities);
+  
+  // Check for timing attacks vulnerability patterns
+  checkTimingAttacks(code, location, vulnerabilities);
+  
+  // Check for client-side business logic implementation
+  checkClientSideBusinessLogic(code, location, vulnerabilities);
+  
+  // Check for insecure randomness
+  checkInsecureRandomness(code, location, vulnerabilities);
+  
+  // Check for regex denial of service (additional patterns not covered in checkReDoS)
+  checkExtendedReDoS(code, location, vulnerabilities);
+  
+  // Check for insecure data serialization
+  checkInsecureSerialization(code, location, vulnerabilities);
+  
+  // Check for postMessage vulnerabilities
+  checkPostMessageVulnerabilities(code, location, vulnerabilities);
+  
+  // Check for DOM clobbering defense
+  checkDOMClobberingDefense(code, location, vulnerabilities);
+  
+  // Check for browser fingerprinting techniques
+  checkBrowserFingerprinting(code, location, vulnerabilities);
+}
+
+// Check for dangerous JavaScript features
+function checkDangerousJSFeatures(code, location, vulnerabilities) {
+  // Check for use of with statement (can lead to confusion and vulnerabilities)
+  if (/\bwith\s*\(/i.test(code)) {
+    vulnerabilities.push({
+      name: 'Use of Dangerous JavaScript Feature: with Statement',
+      description: 'The with statement is deprecated and can lead to variable scope confusion and potential security issues.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+  
+  // Check for Function constructor (similar to eval)
+  if (/new\s+Function\s*\(/i.test(code)) {
+    vulnerabilities.push({
+      name: 'Use of Function Constructor',
+      description: 'The Function constructor is similar to eval() and can execute arbitrary code, posing security risks.',
+      severity: 'High',
+      location: location
+    });
+  }
+  
+  // Check for iframe srcdoc
+  if (/\.srcdoc\s*=|srcdoc\s*=/i.test(code)) {
+    vulnerabilities.push({
+      name: 'Dynamic iFrame srcdoc Manipulation',
+      description: 'Code dynamically sets iframe srcdoc content, which could lead to XSS if the content is derived from user input.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+  
+  // Check for dangerous property access patterns
+  if (/\[\s*['"](?:__proto__|constructor|prototype|__defineGetter__|__defineSetter__)['"]\s*\]/i.test(code)) {
+    vulnerabilities.push({
+      name: 'Access to Dangerous Object Properties',
+      description: 'Code accesses JavaScript object properties that are commonly used in prototype pollution or privilege escalation attacks.',
+      severity: 'High',
+      location: location
+    });
+  }
+  
+  // Check for iframe sandboxing bypass
+  if (/\.sandbox\s*=\s*['"]\s*allow-scripts\s*allow-same-origin/i.test(code)) {
+    vulnerabilities.push({
+      name: 'Insecure iFrame Sandbox Configuration',
+      description: 'iFrame sandbox attributes allow both scripts and same-origin, which essentially defeats the purpose of sandboxing.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+}
+
+// Check for insecure crypto usage
+function checkInsecureCrypto(code, location, vulnerabilities) {
+  // Check for weak crypto algorithms
+  if (/MD5|SHA-?1|DES|RC4/i.test(code)) {
+    vulnerabilities.push({
+      name: 'Usage of Weak Cryptographic Algorithms',
+      description: 'Weak or outdated cryptographic algorithms detected. These algorithms are no longer considered secure.',
+      severity: 'High',
+      location: location
+    });
+  }
+  
+  // Check for client-side encryption without server verification
+  if (/(encrypt|cipher|AES)/i.test(code) && !/(verify|validate|sign)/i.test(code)) {
+    vulnerabilities.push({
+      name: 'Client-Side Encryption Without Verification',
+      description: 'Client-side encryption is being used without apparent server-side verification, which may give a false sense of security.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+  
+  // Check for use of insecure crypto libraries
+  if (/\.?CryptoJS\.(?!SHA256|SHA384|SHA512|SHA3|PBKDF2|AES)/i.test(code)) {
+    vulnerabilities.push({
+      name: 'Potential Use of Insecure Crypto Methods',
+      description: 'Usage of CryptoJS without specifying a strong algorithm could result in insecure cryptographic operations.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+  
+  // Check for custom crypto implementations
+  if (/function\s+(?:encrypt|decrypt|hash|cipher|encode)/i.test(code)) {
+    vulnerabilities.push({
+      name: 'Custom Cryptographic Implementation',
+      description: 'Custom implementation of cryptographic functions detected. Using custom crypto instead of vetted libraries is generally risky.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+}
+
+// Check for debugger statements and console logs
+function checkDebuggerStatements(code, location, vulnerabilities) {
+  // Check for debugger statements
+  if (/\bdebugger\b/i.test(code)) {
+    vulnerabilities.push({
+      name: 'Debugger Statement in Code',
+      description: 'Debugger statements in production code can allow an attacker to pause execution and inspect variables.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+  
+  // Check for excessive console logging that might leak sensitive data
+  if (/console\.(?:log|debug|info|warn|error)\s*\([^)]*(?:password|token|key|secret|auth|account)/i.test(code)) {
+    vulnerabilities.push({
+      name: 'Sensitive Data in Console Logs',
+      description: 'Console logging statements may contain sensitive information, which could be exposed in browser developer tools.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+}
+
+// Check for code patterns vulnerable to timing attacks
+function checkTimingAttacks(code, location, vulnerabilities) {
+  // Check for simple string comparison for sensitive data
+  if (/===\s*['"][^'"]*['"]\s*\|\|\s*password|password\s*===\s*['"][^'"]*['"]/i.test(code)) {
+    vulnerabilities.push({
+      name: 'Potential Timing Attack Vulnerability',
+      description: 'Simple string comparisons for passwords or tokens may be vulnerable to timing attacks. Use constant-time comparison functions instead.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+  
+  // Check for timing-based user enumeration
+  if (/user.*not.*found|username.*invalid/i.test(code) && /getElementById\(.*?message/i.test(code)) {
+    vulnerabilities.push({
+      name: 'User Enumeration Vulnerability',
+      description: 'Different error messages for invalid users versus invalid passwords can enable user enumeration attacks.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+}
+
+// Check for client-side business logic implementation
+function checkClientSideBusinessLogic(code, location, vulnerabilities) {
+  // Check for client-side price calculation
+  if (/(?:price|cost|total)\s*=|calculate(?:Price|Total|Cost)/i.test(code) && 
+      /\.value|getElementById|querySelector.*\.value/i.test(code)) {
+    
+    vulnerabilities.push({
+      name: 'Client-Side Price Calculation',
+      description: 'Price calculations appear to be performed on the client side, which could be manipulated by users. Always verify prices on the server.',
+      severity: 'High',
+      location: location
+    });
+  }
+  
+  // Check for client-side discount validation
+  if (/(?:discount|coupon|promo)\s*Code/i.test(code) && 
+      /if\s*\(|switch\s*\(/i.test(code) && 
+      !/ajax|fetch|\.post|\.get/i.test(code)) {
+    
+    vulnerabilities.push({
+      name: 'Client-Side Discount Validation',
+      description: 'Discount or promo codes appear to be validated on the client side, which could be bypassed. Always verify on the server.',
+      severity: 'High',
+      location: location
+    });
+  }
+  
+  // Check for client-side role/permission checks
+  if (/(?:isAdmin|hasRole|can(?:Edit|Delete|Create|Update)|permissions|role\s*==)/i.test(code) &&
+      !/(?:fetch|ajax|get|post).*\.then.*role/i.test(code)) {
+    
+    vulnerabilities.push({
+      name: 'Client-Side Permission Checks',
+      description: 'User roles or permissions appear to be checked on the client side, which could be bypassed. Always verify permissions on the server.',
+      severity: 'Critical',
+      location: location
+    });
+  }
+}
+
+// Check for insecure randomness
+function checkInsecureRandomness(code, location, vulnerabilities) {
+  // Check for Math.random() used for security purposes
+  if (/Math\.random\s*\(\s*\)/i.test(code) && 
+      /(?:token|password|key|secure|random(?:Id|String|Bytes)|uuid)/i.test(code)) {
+    
+    vulnerabilities.push({
+      name: 'Insecure Randomness Source',
+      description: 'Math.random() is being used in a security context, but it\'s not cryptographically secure. Use crypto.getRandomValues() instead.',
+      severity: 'High',
+      location: location
+    });
+  }
+  
+  // Check for timestamp used as a randomness source
+  if (/(new\s+Date|Date\.now)\s*\(\s*\).*\+\s*Math\.random/i.test(code) && 
+      /(?:token|password|key|secure|random(?:Id|String|Bytes)|uuid)/i.test(code)) {
+    
+    vulnerabilities.push({
+      name: 'Timestamp as Randomness Source',
+      description: 'Using timestamp with Math.random() is still not cryptographically secure and may be predictable.',
+      severity: 'High',
+      location: location
+    });
+  }
+  
+  // Check for secure randomness implementation
+  if (!/crypto\.getRandomValues|webcrypto|SubtleCrypto/i.test(code) && 
+      /(?:generate|create).*(?:Token|Password|Key|Secret)/i.test(code)) {
+    
+    vulnerabilities.push({
+      name: 'Missing Secure Random Number Generator',
+      description: 'Code appears to generate security-sensitive values without using a cryptographically secure random number generator.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+}
+
+// Check for extended ReDoS patterns
+function checkExtendedReDoS(code, location, vulnerabilities) {
+  // These are additional patterns beyond what's checked in the main ReDoS function
+  
+  // Check for use of greedy quantifiers with alternation in regex
+  if (/new\s+RegExp\s*\(\s*['"][^'"]*\.\*.*\|.*\.\*[^'"]*['"]/i.test(code) || 
+      /\/[^\/]*\.\*.*\|.*\.\*[^\/]*\//i.test(code)) {
+    
+    vulnerabilities.push({
+      name: 'ReDoS Vulnerable Regex Pattern',
+      description: 'Regular expression uses greedy quantifiers with alternation, which can cause catastrophic backtracking and lead to DoS.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+  
+  // Check for nested repetition quantifiers
+  if (/new\s+RegExp\s*\(\s*['"][^'"]*\(.*[\+\*\{\d,\}].*\)[\+\*\{\d,\}][^'"]*['"]/i.test(code) || 
+      /\/[^\/]*\(.*[\+\*\{\d,\}].*\)[\+\*\{\d,\}][^\/]*\//i.test(code)) {
+    
+    vulnerabilities.push({
+      name: 'ReDoS Vulnerable Nested Quantifiers',
+      description: 'Regular expression uses nested repetition quantifiers, which can cause exponential backtracking and lead to DoS.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+  
+  // Check for use of regexes with user input without timeouts
+  if ((code.match(/new\s+RegExp\s*\([^)]*(?:value|input|param)/i) || 
+       code.match(/\.match\s*\([^)]*(?:value|input|param)/i)) && 
+      !code.match(/setTimeout|timeout/i)) {
+    
+    vulnerabilities.push({
+      name: 'Uncontrolled Regex with User Input',
+      description: 'Regular expressions constructed from user input without timeout mechanisms could lead to ReDoS attacks.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+}
+
+// Check for insecure data serialization
+function checkInsecureSerialization(code, location, vulnerabilities) {
+  // Check for eval with JSON.parse alternative
+  if (/eval\s*\(\s*['"].*?\s*\+/i.test(code) && !code.includes('JSON.parse')) {
+    vulnerabilities.push({
+      name: 'Insecure Data Deserialization',
+      description: 'Code appears to use eval() for data deserialization instead of JSON.parse(), which is a security risk.',
+      severity: 'High',
+      location: location
+    });
+  }
+  
+  // Check for unvalidated JSON parsing
+  if (/JSON\.parse\s*\(/i.test(code) && !code.match(/try\s*\{.*?JSON\.parse/i)) {
+    vulnerabilities.push({
+      name: 'Unhandled JSON Parsing',
+      description: 'JSON.parse() is used without a try/catch block, which could cause application crashes with malformed input.',
+      severity: 'Low',
+      location: location
+    });
+  }
+  
+  // Check for potentially unsafe object deserialization methods
+  if (/fromJSON|deserialize|unserialize/i.test(code)) {
+    vulnerabilities.push({
+      name: 'Potential Unsafe Deserialization',
+      description: 'Custom deserialization methods detected. Ensure these methods validate and sanitize input properly.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+}
+
+// Check for postMessage vulnerabilities
+function checkPostMessageVulnerabilities(code, location, vulnerabilities) {
+  // Check for postMessage without origin checks
+  if (/\.postMessage\s*\(/i.test(code) && !code.match(/targetOrigin\s*:\s*['"][^*][^'"]*['"]/i)) {
+    vulnerabilities.push({
+      name: 'Insecure postMessage Usage',
+      description: 'postMessage is used without specifying a concrete targetOrigin, which could allow sending data to any domain.',
+      severity: 'High',
+      location: location
+    });
+  }
+  
+  // Check for message event listeners without origin validation
+  if (/addEventListener\s*\(\s*['"]message['"]/i.test(code) && 
+      !code.match(/e\.origin\s*===|event\.origin\s*===|\borigin\b.*?\s*===\s*['"]http/i)) {
+    
+    vulnerabilities.push({
+      name: 'Missing Origin Check in message Event',
+      description: 'Event listener for "message" events does not validate the origin of the sender, which could allow cross-origin attacks.',
+      severity: 'High',
+      location: location
+    });
+  }
+}
+
+// Check for DOM clobbering defense
+function checkDOMClobberingDefense(code, location, vulnerabilities) {
+  // Check for direct access to DOM properties without hasOwnProperty checks
+  if (code.match(/\.(id|name|nodeName)\s*===|===/i) && 
+      !code.match(/hasOwnProperty|Object\.prototype\.hasOwnProperty|instanceof\s+HTML/i)) {
+    
+    vulnerabilities.push({
+      name: 'Potential DOM Clobbering Vulnerability',
+      description: 'Code accesses DOM properties without checking if they are actual properties rather than DOM elements, which could lead to DOM clobbering attacks.',
+      severity: 'Medium',
+      location: location
+    });
+  }
+  
+  // Check for direct property access that could be clobbered
+  if (code.match(/\bconfig\s*\.\s*\w+|\bsettings\s*\.\s*\w+|\boptions\s*\.\s*\w+/i) && 
+      !code.match(/Object\.create\s*\(null\)/i)) {
+    
+    vulnerabilities.push({
+      name: 'Potential Object Property Clobbering',
+      description: 'Direct access to object properties without protection against prototype pollution or DOM clobbering detected.',
+      severity: 'Low',
+      location: location
+    });
+  }
+}
+
+// Check for browser fingerprinting techniques
+function checkBrowserFingerprinting(code, location, vulnerabilities) {
+  // Count fingerprinting techniques used
+  let fingerprintingTechniques = 0;
+  
+  // Check for canvas fingerprinting
+  if (/canvas[^\.]*\.toDataURL|getImageData/i.test(code)) {
+    fingerprintingTechniques++;
+  }
+  
+  // Check for font enumeration
+  if (/document\.fonts|FontFace|font-family.*?serif|font-family.*?sans/i.test(code)) {
+    fingerprintingTechniques++;
+  }
+  
+  // Check for WebRTC IP detection
+  if (/RTCPeerConnection|createDataChannel|onicecandidate/i.test(code)) {
+    fingerprintingTechniques++;
+  }
+  
+  // Check for navigator property collection
+  if (/navigator\.(?:userAgent|platform|language|languages|buildID|hardwareConcurrency|deviceMemory)/i.test(code)) {
+    fingerprintingTechniques++;
+  }
+  
+  // Check for audio fingerprinting
+  if (/AudioContext|OfflineAudioContext|createOscillator|createAnalyser/i.test(code)) {
+    fingerprintingTechniques++;
+  }
+  
+  // Report if multiple fingerprinting techniques are found
+  if (fingerprintingTechniques >= 3) {
+    vulnerabilities.push({
+      name: 'Browser Fingerprinting Detected',
+      description: 'Multiple browser fingerprinting techniques detected. While not inherently malicious, fingerprinting raises privacy concerns and may violate regulations like GDPR.',
+      severity: 'Medium',
+      location: location
     });
   }
 } 
