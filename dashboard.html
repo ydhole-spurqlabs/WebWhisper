@@ -1,275 +1,808 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Web Security Scanner Dashboard</title>
-  <meta charset="UTF-8">
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', sans-serif;
-      margin: 0;
-      padding: 20px;
-      color: #333;
-      background-color: #f9f9f9;
-    }
-    
-    .header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    
-    .logo {
-      width: 40px;
-      height: 40px;
-      background-color: #5B5BFF;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-right: 15px;
-    }
-    
-    .logo svg {
-      width: 22px;
-      height: 22px;
-      fill: white;
-    }
-    
-    h1 {
-      font-size: 24px;
-      font-weight: 600;
-      margin: 0;
-    }
-    
-    .summary {
-      background-color: white;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    }
-    
-    .summary-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin: 0 0 15px 0;
-      color: #333;
-    }
-    
-    .summary-stats {
-      display: flex;
-      justify-content: space-between;
-    }
-    
-    .stat-card {
-      background-color: #f8f8f8;
-      border-radius: 6px;
-      padding: 15px;
-      width: 30%;
-      text-align: center;
-    }
-    
-    .stat-value {
-      font-size: 24px;
-      font-weight: 700;
-      color: #5B5BFF;
-      margin-bottom: 5px;
-    }
-    
-    .stat-label {
-      font-size: 14px;
-      color: #666;
-    }
-    
-    .vulnerabilities {
-      background-color: white;
-      border-radius: 8px;
-      padding: 20px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    }
-    
-    .vuln-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin: 0 0 15px 0;
-      color: #333;
-    }
-    
-    .vuln-filters {
-      display: flex;
-      margin-bottom: 15px;
-    }
-    
-    .filter-btn {
-      background-color: #f0f0f0;
-      border: none;
-      padding: 8px 12px;
-      margin-right: 8px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    
-    .filter-btn.active {
-      background-color: #5B5BFF;
-      color: white;
-    }
-    
-    .vuln-item {
-      border-left: 4px solid #ccc;
-      background-color: #f8f8f8;
-      margin-bottom: 10px;
-      padding: 15px;
-      border-radius: 0 4px 4px 0;
-    }
-    
-    .vuln-item.high {
-      border-left-color: #ea4335;
-    }
-    
-    .vuln-item.medium {
-      border-left-color: #fbbc05;
-    }
-    
-    .vuln-item.low {
-      border-left-color: #34a853;
-    }
-    
-    .vuln-item h3 {
-      margin: 0 0 8px 0;
-      font-size: 16px;
-    }
-    
-    .vuln-severity {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      margin-left: 8px;
-      color: white;
-    }
-    
-    .vuln-severity.high {
-      background-color: #ea4335;
-    }
-    
-    .vuln-severity.medium {
-      background-color: #fbbc05;
-    }
-    
-    .vuln-severity.low {
-      background-color: #34a853;
-    }
-    
-    .vuln-description {
-      margin: 8px 0;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-    
-    .vuln-meta {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      color: #666;
-      margin-top: 8px;
-    }
-    
-    .vuln-location {
-      font-family: monospace;
-      background-color: #eee;
-      padding: 2px 5px;
-      border-radius: 3px;
-    }
-    
-    .no-vulnerabilities {
-      text-align: center;
-      padding: 30px;
-      color: #666;
-    }
-    
-    footer {
-      margin-top: 20px;
-      text-align: center;
-      font-size: 12px;
-      color: #999;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web Security Scanner</title>
+<link href="lib/remixicon.css" rel="stylesheet">
+<script src="lib/echarts.min.js"></script>
+<style>
+:where([class^="ri-"])::before { content: "\f3c2"; }
+body {
+font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', sans-serif;
+background-color: #f9fafb;
+color: #1f2937;
+margin: 0;
+padding: 0;
+}
+.dark {
+background-color: #111827;
+color: #f9fafb;
+}
+.dark .card {
+background-color: #1f2937;
+border-color: #374151;
+}
+.dark .header {
+background-color: #111827;
+border-color: #374151;
+}
+.dark .sidebar {
+background-color: #1f2937;
+border-color: #374151;
+}
+.dark .table-row {
+border-color: #374151;
+}
+.dark .table-row:hover {
+background-color: #374151;
+}
+.dark .modal-content {
+background-color: #1f2937;
+}
+.dark .accordion-header {
+background-color: #1f2937;
+border-color: #374151;
+}
+.dark .accordion-content {
+background-color: #1f2937;
+border-color: #374151;
+}
+input[type="checkbox"] {
+appearance: none;
+width: 20px;
+height: 20px;
+border: 2px solid #d1d5db;
+border-radius: 4px;
+position: relative;
+cursor: pointer;
+}
+input[type="checkbox"]:checked {
+background-color: #6366f1;
+border-color: #6366f1;
+}
+input[type="checkbox"]:checked::after {
+content: "";
+position: absolute;
+top: 2px;
+left: 6px;
+width: 5px;
+height: 10px;
+border: solid white;
+border-width: 0 2px 2px 0;
+transform: rotate(45deg);
+}
+.dark input[type="checkbox"] {
+border-color: #4b5563;
+}
+.toggle {
+position: relative;
+width: 48px;
+height: 24px;
+border-radius: 12px;
+background-color: #d1d5db;
+cursor: pointer;
+transition: background-color 0.3s;
+}
+.toggle.active {
+background-color: #6366f1;
+}
+.toggle-handle {
+position: absolute;
+top: 2px;
+left: 2px;
+width: 20px;
+height: 20px;
+border-radius: 50%;
+background-color: white;
+transition: transform 0.3s;
+}
+.toggle.active .toggle-handle {
+transform: translateX(24px);
+}
+.card {
+background-color: white;
+border: 1px solid #e5e7eb;
+transition: all 0.3s;
+border-radius: 8px;
+padding: 1.5rem;
+}
+.card:hover {
+transform: translateY(-2px);
+box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+.severity-high {
+background-color: rgba(239, 68, 68, 0.15);
+color: #ef4444;
+}
+.severity-medium {
+background-color: rgba(249, 115, 22, 0.15);
+color: #f97316;
+}
+.severity-low {
+background-color: rgba(234, 179, 8, 0.15);
+color: #eab308;
+}
+.status-detected {
+background-color: rgba(239, 68, 68, 0.15);
+color: #ef4444;
+}
+.status-not-detected {
+background-color: rgba(34, 197, 94, 0.15);
+color: #22c55e;
+}
+.status-flagged {
+background-color: rgba(249, 115, 22, 0.15);
+color: #f97316;
+}
+.accordion-header {
+background-color: white;
+border: 1px solid #e5e7eb;
+cursor: pointer;
+border-radius: 8px 8px 0 0;
+padding: 1rem;
+}
+.accordion-content {
+background-color: white;
+border: 1px solid #e5e7eb;
+border-top: none;
+max-height: 0;
+overflow: hidden;
+transition: max-height 0.5s ease-out;
+}
+.accordion-content.active {
+max-height: 800px;
+overflow: visible;
+}
+.table-row {
+border-bottom: 1px solid #e5e7eb;
+transition: background-color 0.2s;
+}
+.table-row:hover {
+background-color: #f3f4f6;
+}
+.modal {
+display: none;
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background-color: rgba(0, 0, 0, 0.5);
+z-index: 50;
+align-items: center;
+justify-content: center;
+}
+.modal.active {
+display: flex;
+}
+.modal-content {
+background-color: white;
+border-radius: 8px;
+max-width: 800px;
+width: 90%;
+max-height: 90vh;
+overflow-y: auto;
+padding: 1.5rem;
+}
+/* Layout styles */
+.flex {
+display: flex;
+}
+.flex-col {
+flex-direction: column;
+}
+.items-center {
+align-items: center;
+}
+.justify-center {
+justify-content: center;
+}
+.justify-between {
+justify-content: space-between;
+}
+.flex-1 {
+flex: 1;
+}
+.h-screen {
+height: 100vh;
+}
+.min-h-screen {
+min-height: 100vh;
+}
+.w-full {
+width: 100%;
+}
+.h-full {
+height: 100%;
+}
+.space-x-4 > * + * {
+margin-left: 1rem;
+}
+.space-y-4 > * + * {
+margin-top: 1rem;
+}
+.space-y-2 > * + * {
+margin-top: 0.5rem;
+}
+.space-x-2 > * + * {
+margin-left: 0.5rem;
+}
+/* Spacing */
+.p-6 {
+padding: 1.5rem;
+}
+.p-4 {
+padding: 1rem;
+}
+.px-6 {
+padding-left: 1.5rem;
+padding-right: 1.5rem;
+}
+.py-4 {
+padding-top: 1rem;
+padding-bottom: 1rem;
+}
+.px-4 {
+padding-left: 1rem;
+padding-right: 1rem;
+}
+.py-2 {
+padding-top: 0.5rem;
+padding-bottom: 0.5rem;
+}
+.px-2 {
+padding-left: 0.5rem;
+padding-right: 0.5rem;
+}
+.py-1 {
+padding-top: 0.25rem;
+padding-bottom: 0.25rem;
+}
+.pl-4 {
+padding-left: 1rem;
+}
+.pr-4 {
+padding-right: 1rem;
+}
+.pl-5 {
+padding-left: 1.25rem;
+}
+.pl-10 {
+padding-left: 2.5rem;
+}
+.pr-8 {
+padding-right: 2rem;
+}
+.pl-3 {
+padding-left: 0.75rem;
+}
+.px-3 {
+padding-left: 0.75rem;
+padding-right: 0.75rem;
+}
+.py-1\.5 {
+padding-top: 0.375rem;
+padding-bottom: 0.375rem;
+}
+.mb-8 {
+margin-bottom: 2rem;
+}
+.mb-6 {
+margin-bottom: 1.5rem;
+}
+.mb-4 {
+margin-bottom: 1rem;
+}
+.mb-2 {
+margin-bottom: 0.5rem;
+}
+.mt-4 {
+margin-top: 1rem;
+}
+.mr-4 {
+margin-right: 1rem;
+}
+.mr-3 {
+margin-right: 0.75rem;
+}
+.mr-2 {
+margin-right: 0.5rem;
+}
+.mr-1 {
+margin-right: 0.25rem;
+}
+.ml-4 {
+margin-left: 1rem;
+}
+.ml-3 {
+margin-left: 0.75rem;
+}
+.ml-2 {
+margin-left: 0.5rem;
+}
+/* Typography */
+.text-xl {
+font-size: 1.25rem;
+}
+.text-lg {
+font-size: 1.125rem;
+}
+.text-sm {
+font-size: 0.875rem;
+}
+.text-xs {
+font-size: 0.75rem;
+}
+.text-3xl {
+font-size: 1.875rem;
+}
+.font-semibold {
+font-weight: 600;
+}
+.font-medium {
+font-weight: 500;
+}
+.font-bold {
+font-weight: 700;
+}
+.text-gray-500 {
+color: #6b7280;
+}
+.text-gray-700 {
+color: #374151;
+}
+.text-gray-800 {
+color: #1f2937;
+}
+.text-gray-600 {
+color: #4b5563;
+}
+.text-white {
+color: #ffffff;
+}
+.text-primary {
+color: #6366f1;
+}
+.text-red-500 {
+color: #ef4444;
+}
+.text-orange-500 {
+color: #f97316;
+}
+.text-yellow-500 {
+color: #eab308;
+}
+.text-green-500 {
+color: #22c55e;
+}
+.text-blue-500 {
+color: #3b82f6;
+}
+.text-purple-500 {
+color: #8b5cf6;
+}
+.text-pink-500 {
+color: #ec4899;
+}
+.text-indigo-500 {
+color: #6366f1;
+}
+.whitespace-nowrap {
+white-space: nowrap;
+}
+.text-left {
+text-align: left;
+}
+/* Backgrounds */
+.bg-white {
+background-color: #ffffff;
+}
+.bg-primary {
+background-color: #6366f1;
+}
+.bg-gray-100 {
+background-color: #f3f4f6;
+}
+.bg-red-100 {
+background-color: #fee2e2;
+}
+.bg-orange-100 {
+background-color: #ffedd5;
+}
+.bg-yellow-100 {
+background-color: #fef9c3;
+}
+.bg-green-100 {
+background-color: #dcfce7;
+}
+.bg-blue-100 {
+background-color: #dbeafe;
+}
+.bg-indigo-100 {
+background-color: #e0e7ff;
+}
+.bg-purple-100 {
+background-color: #f3e8ff;
+}
+.bg-pink-100 {
+background-color: #fce7f3;
+}
+.hover\:bg-primary:hover {
+background-color: #6366f1;
+}
+.hover\:bg-gray-100:hover {
+background-color: #f3f4f6;
+}
+.hover\:bg-indigo-700:hover {
+background-color: #4338ca;
+}
+.hover\:text-white:hover {
+color: #ffffff;
+}
+.hover\:underline:hover {
+text-decoration: underline;
+}
+/* Borders */
+.border {
+border-width: 1px;
+}
+.border-t {
+border-top-width: 1px;
+}
+.border-b {
+border-bottom-width: 1px;
+}
+.border-gray-200 {
+border-color: #e5e7eb;
+}
+.border-gray-300 {
+border-color: #d1d5db;
+}
+.border-primary {
+border-color: #6366f1;
+}
+.border-none {
+border-style: none;
+}
+.rounded {
+border-radius: 8px;
+}
+.rounded-t {
+border-top-left-radius: 8px;
+border-top-right-radius: 8px;
+}
+.rounded-full {
+border-radius: 9999px;
+}
+.rounded-lg {
+border-radius: 10px;
+}
+.rounded-button {
+border-radius: 8px;
+}
+/* Shadows */
+.shadow-sm {
+box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+/* Sizing */
+.w-10 {
+width: 2.5rem;
+}
+.h-10 {
+height: 2.5rem;
+}
+.w-8 {
+width: 2rem;
+}
+.h-8 {
+height: 2rem;
+}
+.w-64 {
+width: 16rem;
+}
+.h-64 {
+height: 16rem;
+}
+.h-2 {
+height: 0.5rem;
+}
+/* Positioning */
+.relative {
+position: relative;
+}
+.absolute {
+position: absolute;
+}
+.top-1\/2 {
+top: 50%;
+}
+.left-3 {
+left: 0.75rem;
+}
+.transform {
+transform: translateY(-50%);
+}
+.-translate-y-1\/2 {
+transform: translateY(-50%);
+}
+.overflow-auto {
+overflow: auto;
+}
+.overflow-x-auto {
+overflow-x: auto;
+}
+.overflow-y-auto {
+overflow-y: auto;
+}
+.overflow-hidden {
+overflow: hidden;
+}
+/* Grid */
+.grid {
+display: grid;
+}
+.grid-cols-1 {
+grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+.gap-6 {
+gap: 1.5rem;
+}
+.col-span-2 {
+grid-column: span 2 / span 2;
+}
+/* Lists */
+.list-decimal {
+list-style-type: decimal;
+}
+.list-disc {
+list-style-type: disc;
+}
+/* Other */
+.inline-block {
+display: inline-block;
+}
+code {
+font-family: monospace;
+}
+pre {
+margin: 0;
+}
+@media (min-width: 768px) {
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .lg\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+</style>
 </head>
-<body>
-  <div class="header">
-    <div class="logo">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-        <path d="M12,1L3,5v6c0,5.55,3.84,10.74,9,12c5.16-1.26,9-6.45,9-12V5L12,1z M12,11.99h7c-0.53,4.12-3.28,7.79-7,8.94V12H5V6.3 l7-3.11V11.99z"/>
-      </svg>
-    </div>
-    <h1>Web Security Scanner Dashboard</h1>
-  </div>
-  
-  <div class="summary">
-    <h2 class="summary-title">Scan Summary</h2>
-    <div class="summary-stats">
-      <div class="stat-card">
-        <div class="stat-value" id="pagesScanned">10</div>
-        <div class="stat-label">Pages Scanned</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" id="scriptsAnalyzed">38</div>
-        <div class="stat-label">Scripts Analyzed</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" id="issuesFound">4</div>
-        <div class="stat-label">Issues Found</div>
-      </div>
-    </div>
-  </div>
-  
-  <div class="vulnerabilities">
-    <h2 class="vuln-title">Detected Vulnerabilities</h2>
-    <div class="vuln-filters">
-      <button class="filter-btn active" data-filter="all">All</button>
-      <button class="filter-btn" data-filter="high">High</button>
-      <button class="filter-btn" data-filter="medium">Medium</button>
-      <button class="filter-btn" data-filter="low">Low</button>
-    </div>
-    
-    <div id="vulnerabilitiesList">
-      <!-- Vulnerabilities will be loaded here dynamically -->
-      
-      <!-- Example vulnerability items (will be replaced by actual data) -->
-      <div class="vuln-item high">
-        <h3>Insecure Form Submission <span class="vuln-severity high">High</span></h3>
-        <p class="vuln-description">This page contains a form that submits data over unencrypted HTTP, which could allow attackers to intercept sensitive information.</p>
-        <div class="vuln-meta">
-          <span class="vuln-location">Form with action="http://example.com/submit"</span>
-          <span class="vuln-url">example.com</span>
-        </div>
-      </div>
-      
-      <div class="vuln-item medium">
-        <h3>Vulnerable Library Detected <span class="vuln-severity medium">Medium</span></h3>
-        <p class="vuln-description">The page is using jQuery version 1.8.3, which has known security vulnerabilities. Update to a newer version.</p>
-        <div class="vuln-meta">
-          <span class="vuln-location">jQuery 1.8.3</span>
-          <span class="vuln-url">example.com/store</span>
-        </div>
-      </div>
-      
-      <div class="vuln-item low">
-        <h3>Mixed Content: Image <span class="vuln-severity low">Low</span></h3>
-        <p class="vuln-description">This secure page is loading an image over an insecure connection, which may trigger browser warnings.</p>
-        <div class="vuln-meta">
-          <span class="vuln-location">http://example.com/images/logo.png</span>
-          <span class="vuln-url">example.com/about</span>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <footer>
-    <p>Web Security Scanner v1.2.0 | Last scan: <span id="lastScanTime">April 15, 2023, 10:42 AM</span></p>
-  </footer>
-
-  <script src="dashboard.js"></script>
+<body class="min-h-screen">
+<div class="flex flex-col h-screen">
+<!-- Header -->
+<header class="header flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white">
+<div class="flex items-center">
+<div class="w-10 h-10 flex items-center justify-center bg-primary rounded-lg mr-3">
+<i class="ri-shield-check-line text-white ri-lg"></i>
+</div>
+<h1 class="text-xl font-semibold">Web Security Scanner</h1>
+<div class="ml-3 px-2 py-1 bg-gray-100 text-xs font-medium rounded-full">Chrome Extension</div>
+</div>
+<div class="flex items-center space-x-4">
+<button id="refresh-btn" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100">
+<i class="ri-refresh-line ri-lg"></i>
+</button>
+<div class="flex items-center">
+<span class="mr-2 text-sm">Light</span>
+<div id="theme-toggle" class="toggle">
+<div class="toggle-handle"></div>
+</div>
+<span class="ml-2 text-sm">Dark</span>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 overflow-auto p-6">
+<!-- Overview Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+<div class="card">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-medium">Total Issues</h3>
+<div class="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-100">
+<i class="ri-error-warning-line text-primary"></i>
+</div>
+</div>
+<div class="flex items-end">
+<span class="text-3xl font-bold" id="total-issues">0</span>
+<span class="ml-2 text-sm text-gray-500">issues detected</span>
+</div>
+<div class="mt-4">
+<div class="w-full bg-gray-200 rounded-full h-2">
+<div class="bg-primary rounded-full h-2" id="total-issues-progress" style="width: 0%"></div>
+</div>
+</div>
+</div>
+<div class="card">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-medium">High Severity</h3>
+<div class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100">
+<i class="ri-alarm-warning-line text-red-500"></i>
+</div>
+</div>
+<div class="flex items-end">
+<span class="text-3xl font-bold" id="high-severity">0</span>
+<span class="ml-2 text-sm text-gray-500">critical issues</span>
+</div>
+<div class="mt-4">
+<div class="flex items-center">
+<span class="inline-block px-2 py-1 text-xs font-medium rounded severity-high whitespace-nowrap">Needs immediate action</span>
+</div>
+</div>
+</div>
+<div class="card">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-medium">Medium Severity</h3>
+<div class="w-8 h-8 flex items-center justify-center rounded-full bg-orange-100">
+<i class="ri-alert-line text-orange-500"></i>
+</div>
+</div>
+<div class="flex items-end">
+<span class="text-3xl font-bold" id="medium-severity">0</span>
+<span class="ml-2 text-sm text-gray-500">moderate issues</span>
+</div>
+<div class="mt-4">
+<div class="flex items-center">
+<span class="inline-block px-2 py-1 text-xs font-medium rounded severity-medium whitespace-nowrap">Requires attention</span>
+</div>
+</div>
+</div>
+<div class="card">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-medium">Low Severity</h3>
+<div class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100">
+<i class="ri-information-line text-yellow-500"></i>
+</div>
+</div>
+<div class="flex items-end">
+<span class="text-3xl font-bold" id="low-severity">0</span>
+<span class="ml-2 text-sm text-gray-500">minor issues</span>
+</div>
+<div class="mt-4">
+<div class="flex items-center">
+<span class="inline-block px-2 py-1 text-xs font-medium rounded severity-low whitespace-nowrap">Low priority</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Charts Row -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+<div class="card col-span-2">
+<h3 class="text-lg font-medium mb-4">Issue Category Distribution</h3>
+<div id="bar-chart" class="w-full h-64"></div>
+</div>
+<div class="card">
+<h3 class="text-lg font-medium mb-4">Severity Breakdown</h3>
+<div id="pie-chart" class="w-full h-64"></div>
+</div>
+</div>
+<!-- Vulnerability Categories -->
+<div class="mb-8">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-xl font-semibold">Vulnerability Categories</h2>
+<div class="flex items-center">
+<div class="relative mr-4">
+<input type="text" placeholder="Search vulnerabilities..." class="pl-10 pr-4 py-2 w-64 rounded border-none bg-white shadow-sm">
+<div class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 flex items-center justify-center">
+<i class="ri-search-line text-gray-400"></i>
+</div>
+</div>
+<div class="flex items-center space-x-2">
+<span class="text-sm text-gray-500">Filter:</span>
+<select class="py-2 pl-3 pr-8 rounded border-none bg-white shadow-sm text-sm">
+<option>All Severities</option>
+<option>High</option>
+<option>Medium</option>
+<option>Low</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Accordion -->
+<div id="vulnerability-categories" class="space-y-4">
+<!-- Categories will be dynamically populated here -->
+</div>
+</main>
+<!-- Bottom Panel -->
+<div class="border-t border-gray-200 bg-white p-4 flex items-center justify-between">
+<div class="flex items-center">
+<div class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 mr-3">
+<i class="ri-check-line text-green-500"></i>
+</div>
+<div>
+<p class="text-sm font-medium">Passive Scan Completed</p>
+<p class="text-xs text-gray-500">Last scan: <span id="last-scan-time">No scan performed yet</span></p>
+</div>
+</div>
+<div class="flex items-center space-x-4">
+<button id="export-btn" class="px-4 py-2 text-sm text-primary border border-primary rounded-button hover:bg-primary hover:text-white whitespace-nowrap">
+<i class="ri-file-download-line mr-1"></i> Export Report
+</button>
+</div>
+</div>
+</div>
+<!-- Modal -->
+<div id="detail-modal" class="modal">
+<div class="modal-content">
+<div class="flex items-center justify-between mb-6">
+<h2 class="text-xl font-semibold" id="modal-title">Vulnerability Details</h2>
+<button id="close-modal" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">
+<i class="ri-close-line ri-lg"></i>
+</button>
+</div>
+<div class="mb-6">
+<div class="flex items-center mb-2">
+<span class="inline-block px-2 py-1 text-xs font-medium rounded severity-high mr-2" id="modal-severity">High Severity</span>
+<span class="text-sm text-gray-500" id="modal-location">Detected in search.js:42</span>
+</div>
+<p class="text-gray-700 mb-4" id="modal-description">
+Vulnerability description will be displayed here.
+</p>
+</div>
+<div class="mb-6">
+<h3 class="text-lg font-medium mb-2">Steps to Reproduce</h3>
+<ol class="list-decimal pl-5 space-y-2 text-gray-700" id="modal-steps">
+<!-- Steps will be dynamically populated -->
+</ol>
+</div>
+<div class="mb-6">
+<h3 class="text-lg font-medium mb-2">Impact</h3>
+<p class="text-gray-700 mb-2">
+This vulnerability can lead to:
+</p>
+<ul class="list-disc pl-5 space-y-1 text-gray-700" id="modal-impact">
+<!-- Impact items will be dynamically populated -->
+</ul>
+</div>
+<div class="mb-6">
+<h3 class="text-lg font-medium mb-2">Vulnerable Code</h3>
+<div class="bg-gray-100 p-4 rounded overflow-x-auto">
+<pre class="text-sm text-gray-800" id="modal-code">
+// Vulnerable code will be displayed here
+</pre>
+</div>
+</div>
+<div class="mb-6">
+<h3 class="text-lg font-medium mb-2">Recommended Fix</h3>
+<p class="text-gray-700 mb-4" id="modal-fix-description">
+Recommended fix description will be displayed here.
+</p>
+<div class="bg-gray-100 p-4 rounded overflow-x-auto">
+<pre class="text-sm text-gray-800" id="modal-fix-code">
+// Fixed code will be displayed here
+</pre>
+</div>
+</div>
+<div class="mb-6">
+<h3 class="text-lg font-medium mb-2">References</h3>
+<ul class="space-y-2" id="modal-references">
+<!-- References will be dynamically populated -->
+</ul>
+</div>
+<div class="flex justify-end space-x-4">
+<button id="export-detail-btn" class="px-4 py-2 text-sm text-primary border border-primary rounded-button hover:bg-primary hover:text-white whitespace-nowrap">
+<i class="ri-file-download-line mr-1"></i> Export Details
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script src="dashboard.js"></script>
 </body>
 </html> 

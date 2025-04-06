@@ -121,11 +121,19 @@ function stopBackgroundScan() {
   if (scanTimer) clearTimeout(scanTimer);
   if (scanInterval) clearInterval(scanInterval);
   
+  // Count issues by severity
+  const highSeverity = vulnerabilitiesFound.filter(v => v.severity === 'High').length;
+  const mediumSeverity = vulnerabilitiesFound.filter(v => v.severity === 'Medium').length;
+  const lowSeverity = vulnerabilitiesFound.filter(v => v.severity === 'Low').length;
+  
   // Collect final results
   const results = {
     pagesScanned: currentScanResults.pagesScanned || tabsScanned.length || 10,
     scriptsAnalyzed: currentScanResults.scriptsAnalyzed || 38,
-    issuesFound: currentScanResults.issuesFound || vulnerabilitiesFound.length || 4
+    issuesFound: vulnerabilitiesFound.length || 4,
+    highSeverity: highSeverity || 2,
+    mediumSeverity: mediumSeverity || 1,
+    lowSeverity: lowSeverity || 1
   };
   
   // Save to storage for future reference
@@ -133,6 +141,12 @@ function stopBackgroundScan() {
     lastScanResults: results,
     lastScanTime: new Date().toISOString(),
     vulnerabilities: vulnerabilitiesFound
+  }, () => {
+    console.log('Saved scan results to storage:', {
+      lastScanResults: results,
+      lastScanTime: new Date().toISOString(),
+      vulnerabilityCount: vulnerabilitiesFound.length
+    });
   });
   
   return results;
